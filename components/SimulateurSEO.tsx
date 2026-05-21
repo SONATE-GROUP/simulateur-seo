@@ -197,82 +197,101 @@ function KPICard({ label, value, sub, accent = false }: {
 function ConversionFunnel({ impressions, traffic, leads, caMonthly, basketValue }: {
   impressions: number; traffic: number; leads: number; caMonthly: number; basketValue: number;
 }) {
+  // SVG triangle dimensions
+  const W = 400;        // triangle base width
+  const H = 400;        // triangle height
+  const TIP = 60;       // bottom width (not a true point, for readability)
+  const BAND = H / 4;   // 100 per section
+  const SVG_W = 520;    // total SVG width (extra space for rates on right)
+
+  // Left/right edge at a given y
+  const xl = (y: number) => (W - TIP) * y / (2 * H);
+  const xr = (y: number) => W - xl(y);
+
+  const COLORS = ['#e8571a', '#d04c15', '#a63c0f', '#7a2c09'];
+
   const stages = [
-    { label: 'Impressions', value: impressions, color: G4, fmt: fmtN },
-    { label: 'Trafic / Clics', value: traffic, color: '#2d7a5e', fmt: fmtN },
-    { label: 'Leads', value: leads, color: '#1a9e72', fmt: (v: number) => v.toFixed(1) },
-    { label: 'CA mensuel', value: caMonthly, color: ORANGE, fmt: fmtC },
+    { label: 'Impressions',  value: impressions, fmt: fmtN },
+    { label: 'Clics',        value: traffic,     fmt: fmtN },
+    { label: 'Leads',        value: leads,        fmt: (v: number) => v.toFixed(1) },
+    { label: 'CA / mois',   value: caMonthly,   fmt: fmtC },
   ];
 
-  const maxW = 240;
-  const widths = [maxW, maxW * 0.68, maxW * 0.42, maxW * 0.24];
-
-  const convRates = [
-    '100 %',
-    impressions > 0 ? fmtP((traffic / impressions) * 100) : '—',
-    traffic > 0 ? fmtP((leads / traffic) * 100) : '—',
-    leads > 0 ? fmtC(caMonthly / (leads || 1)) + '/lead' : '—',
+  // Conversion rates shown between bands (on the right)
+  const rates = [
+    impressions > 0 ? `↓ ${fmtP((traffic  / impressions) * 100)}` : '—',
+    traffic     > 0 ? `↓ ${fmtP((leads    / traffic)     * 100)}` : '—',
+    leads       > 0 ? `↓ ${fmtP((caMonthly / (leads * basketValue)) * 100)}` : `× ${basketValue}€`,
   ];
 
   return (
-    <div style={{ display: 'flex', gap: 28, alignItems: 'flex-start' }}>
-      {/* Funnel visual */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0, flexShrink: 0 }}>
-        {stages.map((s, i) => (
-          <div
-            key={i}
-            style={{
-              width: widths[i],
-              height: 54,
-              backgroundColor: s.color,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              clipPath: i < stages.length - 1
-                ? `polygon(0 0, ${widths[i]}px 0, ${(widths[i] + widths[i + 1]) / 2}px 54px, ${(widths[i] - widths[i + 1]) / 2}px 54px)`
-                : 'none',
-              borderRadius: i === stages.length - 1 ? 4 : 0,
-              transition: 'width 0.4s ease',
-            }}
-          >
-            <span style={{ color: 'white', fontSize: 11, fontWeight: 600, textAlign: 'center', padding: '0 8px', pointerEvents: 'none' }}>
-              {s.label}
-            </span>
-          </div>
-        ))}
-      </div>
+    <div style={{ display: 'flex', justifyContent: 'center', padding: '4px 0 8px' }}>
+      <svg
+        viewBox={`0 0 ${SVG_W} ${H + 4}`}
+        style={{ width: '100%', maxWidth: 560 }}
+        aria-label="Entonnoir de conversion"
+      >
+        {stages.map((stage, i) => {
+          const y1 = i * BAND;
+          const y2 = (i + 1) * BAND;
+          const cy = (y1 + y2) / 2;
+          // Trapezoid polygon for this band
+          const pts = `${xl(y1)},${y1} ${xr(y1)},${y1} ${xr(y2)},${y2} ${xl(y2)},${y2}`;
 
-      {/* Table */}
-      <div style={{ flex: 1 }}>
-        <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 4px' }}>
-          <thead>
-            <tr>
-              <th style={{ color: '#5a7a6a', fontSize: 10, textAlign: 'left', paddingBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Étape</th>
-              <th style={{ color: '#5a7a6a', fontSize: 10, textAlign: 'right', paddingBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Valeur</th>
-              <th style={{ color: '#5a7a6a', fontSize: 10, textAlign: 'right', paddingBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Taux</th>
-            </tr>
-          </thead>
-          <tbody>
-            {stages.map((s, i) => (
-              <tr key={i}>
-                <td style={{ padding: '5px 0' }}>
-                  <span style={{
-                    display: 'inline-block', width: 9, height: 9,
-                    backgroundColor: s.color, borderRadius: 2, marginRight: 7, verticalAlign: 'middle',
-                  }} />
-                  <span style={{ color: CREAM, fontSize: 13 }}>{s.label}</span>
-                </td>
-                <td style={{ textAlign: 'right', padding: '5px 0' }}>
-                  <span style={{ color: ORANGE, fontWeight: 700, fontSize: 14 }}>{s.fmt(s.value)}</span>
-                </td>
-                <td style={{ textAlign: 'right', padding: '5px 0 5px 16px' }}>
-                  <span style={{ color: '#7a9e8e', fontSize: 12 }}>{convRates[i]}</span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          return (
+            <g key={i}>
+              {/* Band fill */}
+              <polygon points={pts} fill={COLORS[i]} />
+
+              {/* Thin separator between bands */}
+              {i > 0 && (
+                <line
+                  x1={xl(y1)} y1={y1} x2={xr(y1)} y2={y1}
+                  stroke="rgba(0,0,0,0.18)" strokeWidth={1}
+                />
+              )}
+
+              {/* Label (small, above value) */}
+              <text
+                x={W / 2} y={cy - 12}
+                fill="rgba(255,255,255,0.80)"
+                fontSize={13}
+                textAnchor="middle"
+                fontFamily="Inter, -apple-system, sans-serif"
+              >
+                {stage.label}
+              </text>
+
+              {/* Value (large, bold) */}
+              <text
+                x={W / 2} y={cy + 15}
+                fill="white"
+                fontSize={22}
+                fontWeight="800"
+                textAnchor="middle"
+                fontFamily="Inter, -apple-system, sans-serif"
+              >
+                {stage.fmt(stage.value)}
+              </text>
+
+              {/* Conversion rate label on the right, at the band transition */}
+              {i < 3 && (
+                <text
+                  x={xr(y2) + 14}
+                  y={y2 + 5}
+                  fill={ORANGE}
+                  fontSize={12}
+                  fontWeight="600"
+                  textAnchor="start"
+                  fontFamily="Inter, -apple-system, sans-serif"
+                >
+                  {rates[i]}
+                </text>
+              )}
+            </g>
+          );
+        })}
+      </svg>
     </div>
   );
 }
