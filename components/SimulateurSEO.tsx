@@ -130,8 +130,38 @@ const card: CSSProperties = {
   border: `1px solid ${G3}`,
 };
 
+/* Light panel (left sidebar) */
+const CREAM2 = '#f5f0e8';     // panel background
+const L_CARD  = 'rgba(255,255,255,0.65)'; // card bg on light
+const L_BORD  = '#ddd5c8';    // border
+const L_DARK  = '#1e3328';    // main text
+const L_MED   = '#4a6a5a';    // secondary text
+const L_SOFT  = '#8a9e98';    // muted text
+const L_INPUT = '#ffffff';    // input bg
+const L_TRACK = '#d5cfc6';    // slider track
+
+const cardLight: CSSProperties = {
+  backgroundColor: L_CARD,
+  borderRadius: 10,
+  padding: 16,
+  marginBottom: 14,
+  border: `1px solid ${L_BORD}`,
+};
+
 const secTitle: CSSProperties = {
   color: CREAM,
+  fontSize: 12,
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '0.09em',
+  marginBottom: 14,
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+};
+
+const secTitleLight: CSSProperties = {
+  color: L_DARK,
   fontSize: 12,
   fontWeight: 700,
   textTransform: 'uppercase',
@@ -153,28 +183,40 @@ const inputBase: CSSProperties = {
   width: '100%',
 };
 
+const inputLight: CSSProperties = {
+  backgroundColor: L_INPUT,
+  border: `1px solid ${L_BORD}`,
+  borderRadius: 6,
+  padding: '7px 11px',
+  color: L_DARK,
+  fontSize: 13,
+  outline: 'none',
+  width: '100%',
+};
+
 /* ─── SLIDER ─────────────────────────────────────────────────── */
 function Slider({
-  label, value, min, max, step = 1, unit = '', onChange, hint,
+  label, value, min, max, step = 1, unit = '', onChange, hint, light = false,
 }: {
   label: string; value: number; min: number; max: number;
-  step?: number; unit?: string; onChange: (v: number) => void; hint?: string;
+  step?: number; unit?: string; onChange: (v: number) => void; hint?: string; light?: boolean;
 }) {
   return (
     <div style={{ marginBottom: 14 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-        <span style={{ color: '#a8c5b5', fontSize: 12 }}>{label}</span>
+        <span style={{ color: light ? L_MED : '#a8c5b5', fontSize: 12 }}>{label}</span>
         <span style={{ color: ORANGE, fontWeight: 700, fontSize: 15 }}>{value}{unit}</span>
       </div>
-      {hint && <div style={{ color: '#7a9e8e', fontSize: 11, marginBottom: 4 }}>{hint}</div>}
+      {hint && <div style={{ color: light ? L_MED : '#7a9e8e', fontSize: 11, marginBottom: 4 }}>{hint}</div>}
       <input
         type="range" min={min} max={max} step={step} value={value}
         onChange={e => onChange(Number(e.target.value))}
+        className={light ? 'slider-light' : undefined}
         style={{ width: '100%' }}
       />
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 2 }}>
-        <span style={{ color: '#4a6a5a', fontSize: 10 }}>{min}{unit}</span>
-        <span style={{ color: '#4a6a5a', fontSize: 10 }}>{max}{unit}</span>
+        <span style={{ color: light ? L_SOFT : '#4a6a5a', fontSize: 10 }}>{min}{unit}</span>
+        <span style={{ color: light ? L_SOFT : '#4a6a5a', fontSize: 10 }}>{max}{unit}</span>
       </div>
     </div>
   );
@@ -522,28 +564,30 @@ export default function SimulateurSEO() {
         {/* ── LEFT PANEL ── */}
         <div style={{
           width: 400, minWidth: 400, overflowY: 'auto',
-          borderRight: `1px solid ${G3}`, padding: '14px 14px 20px',
+          borderRight: `1px solid ${L_BORD}`,
+          padding: '14px 14px 20px',
+          backgroundColor: CREAM2,
         }}>
 
           {/* DONNÉES DU SITE */}
-          <div style={card}>
-            <div style={secTitle}>
+          <div style={cardLight}>
+            <div style={secTitleLight}>
               <span style={{ color: ORANGE, fontSize: 10 }}>◆</span> Données du site
             </div>
-            <Slider label="Domain Authority (DA)" value={da} min={1} max={100}
+            <Slider light label="Domain Authority (DA)" value={da} min={1} max={100}
               onChange={v => update({ da: v })} />
-            <Slider label="Score Santé Semrush" value={healthScore} min={0} max={100}
+            <Slider light label="Score Santé Semrush" value={healthScore} min={0} max={100}
               hint={`Coefficient : ${coeffSante}`}
               onChange={v => update({ healthScore: v })} />
             <div>
-              <div style={{ color: '#a8c5b5', fontSize: 12, marginBottom: 6 }}>
+              <div style={{ color: L_MED, fontSize: 12, marginBottom: 6 }}>
                 Panier moyen / Valeur d'un lead
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <input
                   type="number" value={basketValue} min={1}
                   onChange={e => update({ basketValue: Math.max(1, Number(e.target.value)) })}
-                  style={{ ...inputBase, fontWeight: 700, fontSize: 16, textAlign: 'center' }}
+                  style={{ ...inputLight, fontWeight: 700, fontSize: 16, textAlign: 'center' }}
                 />
                 <span style={{ color: ORANGE, fontWeight: 700, fontSize: 16 }}>€</span>
               </div>
@@ -551,8 +595,8 @@ export default function SimulateurSEO() {
           </div>
 
           {/* MOTS CLÉS */}
-          <div style={{ ...card, padding: '14px 12px' }}>
-            <div style={{ ...secTitle, marginBottom: 10 }}>
+          <div style={{ ...cardLight, padding: '14px 12px' }}>
+            <div style={{ ...secTitleLight, marginBottom: 10 }}>
               <span style={{ color: ORANGE, fontSize: 10 }}>◆</span> Mots clés
               <button
                 onClick={addKw}
@@ -568,7 +612,7 @@ export default function SimulateurSEO() {
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                 <thead>
-                  <tr style={{ color: '#5a7a6a' }}>
+                  <tr style={{ color: L_MED }}>
                     <th style={{ padding: '3px 4px 6px 0', textAlign: 'left' }}>Mot clé</th>
                     <th style={{ padding: '3px 2px 6px', textAlign: 'center', minWidth: 52 }}>Vol.</th>
                     <th style={{ padding: '3px 2px 6px', textAlign: 'center', minWidth: 36 }}>Diff.</th>
@@ -580,34 +624,34 @@ export default function SimulateurSEO() {
                 </thead>
                 <tbody>
                   {keywords.map(kw => (
-                    <tr key={kw.id} style={{ borderTop: `1px solid ${G3}` }}>
+                    <tr key={kw.id} style={{ borderTop: `1px solid ${L_BORD}` }}>
                       <td style={{ padding: '4px 4px 4px 0' }}>
                         <input
                           value={kw.keyword}
                           onChange={e => updateKw(kw.id, 'keyword', e.target.value)}
                           placeholder="mot clé…"
-                          style={{ backgroundColor: 'transparent', border: 'none', color: CREAM, fontSize: 11, outline: 'none', width: '100%', minWidth: 100 }}
+                          style={{ backgroundColor: 'transparent', border: 'none', color: L_DARK, fontSize: 11, outline: 'none', width: '100%', minWidth: 100 }}
                         />
                       </td>
                       <td style={{ padding: '4px 2px' }}>
                         <input
                           type="number" value={kw.volume}
                           onChange={e => updateKw(kw.id, 'volume', Math.max(0, Number(e.target.value)))}
-                          style={{ width: 52, backgroundColor: G3, border: 'none', borderRadius: 3, color: CREAM, fontSize: 11, padding: '2px 4px', textAlign: 'center', outline: 'none' }}
+                          style={{ width: 52, backgroundColor: L_INPUT, border: `1px solid ${L_BORD}`, borderRadius: 3, color: L_DARK, fontSize: 11, padding: '2px 4px', textAlign: 'center', outline: 'none' }}
                         />
                       </td>
                       <td style={{ padding: '4px 2px' }}>
                         <input
                           type="number" value={kw.difficulty} min={0} max={100}
                           onChange={e => updateKw(kw.id, 'difficulty', Math.min(100, Math.max(0, Number(e.target.value))))}
-                          style={{ width: 36, backgroundColor: G3, border: 'none', borderRadius: 3, color: CREAM, fontSize: 11, padding: '2px 4px', textAlign: 'center', outline: 'none' }}
+                          style={{ width: 36, backgroundColor: L_INPUT, border: `1px solid ${L_BORD}`, borderRadius: 3, color: L_DARK, fontSize: 11, padding: '2px 4px', textAlign: 'center', outline: 'none' }}
                         />
                       </td>
                       <td style={{ padding: '4px 2px' }}>
                         <select
                           value={kw.proximity}
                           onChange={e => updateKw(kw.id, 'proximity', Number(e.target.value) as Proximity)}
-                          style={{ width: 88, backgroundColor: G3, border: 'none', borderRadius: 3, color: CREAM, fontSize: 11, padding: '2px 4px', outline: 'none', cursor: 'pointer' }}
+                          style={{ width: 88, backgroundColor: L_INPUT, border: `1px solid ${L_BORD}`, borderRadius: 3, color: L_DARK, fontSize: 11, padding: '2px 4px', outline: 'none', cursor: 'pointer' }}
                         >
                           <option value={1}>Sujet exact</option>
                           <option value={2}>Très proche</option>
@@ -618,7 +662,7 @@ export default function SimulateurSEO() {
                         <select
                           value={kw.intention}
                           onChange={e => updateKw(kw.id, 'intention', Number(e.target.value) as Intention)}
-                          style={{ width: 100, backgroundColor: G3, border: 'none', borderRadius: 3, color: CREAM, fontSize: 11, padding: '2px 4px', outline: 'none', cursor: 'pointer' }}
+                          style={{ width: 100, backgroundColor: L_INPUT, border: `1px solid ${L_BORD}`, borderRadius: 3, color: L_DARK, fontSize: 11, padding: '2px 4px', outline: 'none', cursor: 'pointer' }}
                         >
                           <option value={1}>Transactionnel</option>
                           <option value={2}>Pré-achat</option>
@@ -631,7 +675,7 @@ export default function SimulateurSEO() {
                           value={kw.topic}
                           onChange={e => updateKw(kw.id, 'topic', e.target.value)}
                           placeholder="sujet…"
-                          style={{ backgroundColor: 'transparent', border: 'none', color: '#a8c5b5', fontSize: 11, outline: 'none', width: '100%', minWidth: 66 }}
+                          style={{ backgroundColor: 'transparent', border: 'none', color: L_MED, fontSize: 11, outline: 'none', width: '100%', minWidth: 66 }}
                         />
                       </td>
                       <td style={{ padding: '4px 0', textAlign: 'center' }}>
@@ -650,42 +694,41 @@ export default function SimulateurSEO() {
           </div>
 
           {/* TAUX DE CONVERSION */}
-          <div style={card}>
-            <div style={secTitle}>
+          <div style={cardLight}>
+            <div style={secTitleLight}>
               <span style={{ color: ORANGE, fontSize: 10 }}>◆</span> Taux de conversion par intention
             </div>
-            <Slider label="Transactionnel" value={crTransactionnel} min={0} max={30} step={0.5} unit="%" onChange={v => update({ crTransactionnel: v })} />
-            <Slider label="Pré-achat" value={crPreAchat} min={0} max={20} step={0.5} unit="%" onChange={v => update({ crPreAchat: v })} />
-            <Slider label="Intermédiaire" value={crIntermediaire} min={0} max={10} step={0.1} unit="%" onChange={v => update({ crIntermediaire: v })} />
-            <Slider label="Informationnel" value={crInformationnel} min={0} max={5} step={0.1} unit="%" onChange={v => update({ crInformationnel: v })} />
+            <Slider light label="Transactionnel" value={crTransactionnel} min={0} max={30} step={0.5} unit="%" onChange={v => update({ crTransactionnel: v })} />
+            <Slider light label="Pré-achat" value={crPreAchat} min={0} max={20} step={0.5} unit="%" onChange={v => update({ crPreAchat: v })} />
+            <Slider light label="Intermédiaire" value={crIntermediaire} min={0} max={10} step={0.1} unit="%" onChange={v => update({ crIntermediaire: v })} />
+            <Slider light label="Informationnel" value={crInformationnel} min={0} max={5} step={0.1} unit="%" onChange={v => update({ crInformationnel: v })} />
           </div>
 
           {/* BUDGET */}
-          <div style={card}>
-            <div style={secTitle}>
+          <div style={cardLight}>
+            <div style={secTitleLight}>
               <span style={{ color: ORANGE, fontSize: 10 }}>◆</span> Budget
             </div>
-            <Slider label="Coût par page (création + optimisation)" value={costPerPage} min={300} max={2000} step={50} unit="€"
+            <Slider light label="Coût par page (création + optimisation)" value={costPerPage} min={300} max={2000} step={50} unit="€"
               onChange={v => update({ costPerPage: v })} />
-            <Slider label="Ratio budget alloué" value={budgetRatio} min={20} max={100} unit="%"
+            <Slider light label="Ratio budget alloué" value={budgetRatio} min={20} max={100} unit="%"
               hint={`Budget total : ${fmtC(totals.budgetTotal)}`}
               onChange={v => update({ budgetRatio: v })} />
-            <div style={{ backgroundColor: G3, borderRadius: 6, padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ color: '#a8c5b5', fontSize: 12 }}>{totals.nbPages} pages × {fmtC(costPerPage)} × {budgetRatio}%</span>
+            <div style={{ backgroundColor: 'rgba(0,0,0,0.06)', borderRadius: 6, padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ color: L_MED, fontSize: 12 }}>{totals.nbPages} pages × {fmtC(costPerPage)} × {budgetRatio}%</span>
               <span style={{ color: ORANGE, fontWeight: 700, fontSize: 15 }}>{fmtC(totals.budgetTotal)}</span>
             </div>
           </div>
 
           {/* SAISONNALITÉ */}
-          <div style={card}>
-            <div style={{ ...secTitle, marginBottom: seasonalityEnabled ? 14 : 0 }}>
+          <div style={cardLight}>
+            <div style={{ ...secTitleLight, marginBottom: seasonalityEnabled ? 14 : 0 }}>
               <span style={{ color: ORANGE, fontSize: 10 }}>◆</span> Saisonnalité
-              {/* Toggle */}
               <button
                 onClick={() => update({ seasonalityEnabled: !seasonalityEnabled })}
                 style={{
                   marginLeft: 'auto',
-                  backgroundColor: seasonalityEnabled ? ORANGE : G3,
+                  backgroundColor: seasonalityEnabled ? ORANGE : L_BORD,
                   border: 'none', borderRadius: 12,
                   width: 40, height: 22, cursor: 'pointer',
                   position: 'relative', transition: 'background .2s', flexShrink: 0,
@@ -713,10 +756,10 @@ export default function SimulateurSEO() {
                         key={p}
                         onClick={() => update({ highSeasonMonths: [...SEASON_PRESETS[p]] })}
                         style={{
-                          flex: 1, backgroundColor: active ? ORANGE : G3,
-                          border: `1px solid ${active ? ORANGE : G4}`,
+                          flex: 1, backgroundColor: active ? ORANGE : L_INPUT,
+                          border: `1px solid ${active ? ORANGE : L_BORD}`,
                           borderRadius: 5, padding: '4px 6px',
-                          color: active ? 'white' : '#a8c5b5',
+                          color: active ? 'white' : L_MED,
                           fontSize: 11, fontWeight: active ? 700 : 400,
                           cursor: 'pointer', textTransform: 'capitalize',
                         }}
@@ -729,7 +772,7 @@ export default function SimulateurSEO() {
 
                 {/* Month selector */}
                 <div style={{ marginBottom: 12 }}>
-                  <div style={{ color: '#7a9e8e', fontSize: 11, marginBottom: 6 }}>
+                  <div style={{ color: L_MED, fontSize: 11, marginBottom: 6 }}>
                     Cliquer les mois de haute saison
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 4 }}>
@@ -742,10 +785,10 @@ export default function SimulateurSEO() {
                           update({ highSeasonMonths: next });
                         }}
                         style={{
-                          backgroundColor: highSeasonMonths[i] ? ORANGE : G3,
-                          border: `1px solid ${highSeasonMonths[i] ? ORANGE : G4}`,
+                          backgroundColor: highSeasonMonths[i] ? ORANGE : L_INPUT,
+                          border: `1px solid ${highSeasonMonths[i] ? ORANGE : L_BORD}`,
                           borderRadius: 4, padding: '4px 2px',
-                          color: highSeasonMonths[i] ? 'white' : '#7a9e8e',
+                          color: highSeasonMonths[i] ? 'white' : L_MED,
                           fontSize: 10, fontWeight: highSeasonMonths[i] ? 700 : 400,
                           cursor: 'pointer', transition: 'all .15s',
                         }}
@@ -757,7 +800,7 @@ export default function SimulateurSEO() {
                 </div>
 
                 {/* Multiplier */}
-                <Slider
+                <Slider light
                   label="Multiplicateur haute saison"
                   value={highSeasonMultiplier}
                   min={1.5} max={6} step={0.5}
@@ -768,11 +811,11 @@ export default function SimulateurSEO() {
 
                 {/* Start month */}
                 <div>
-                  <div style={{ color: '#a8c5b5', fontSize: 12, marginBottom: 6 }}>Mois de démarrage de la campagne</div>
+                  <div style={{ color: L_MED, fontSize: 12, marginBottom: 6 }}>Mois de démarrage de la campagne</div>
                   <select
                     value={startMonth}
                     onChange={e => update({ startMonth: Number(e.target.value) })}
-                    style={{ ...inputBase, fontSize: 12 }}
+                    style={{ ...inputLight, fontSize: 12 }}
                   >
                     {MONTH_NAMES.map((m, i) => (
                       <option key={i} value={i}>{m}</option>

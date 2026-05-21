@@ -88,6 +88,19 @@ select {
   padding-right: 20px !important;
 }
 
+/* Light panel slider track */
+input[type="range"].slider-light {
+  background: #d5cfc6;
+}
+input[type="range"].slider-light::-webkit-slider-runnable-track {
+  background: #d5cfc6;
+}
+input[type="range"].slider-light::-moz-range-track {
+  background: #d5cfc6;
+  height: 4px;
+  border-radius: 2px;
+}
+
 /* Print / PDF */
 @media print {
   body { overflow: visible; }
