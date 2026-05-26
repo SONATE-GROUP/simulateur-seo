@@ -446,16 +446,19 @@ export default function SimulateurSEO() {
       weights = Array(12).fill(1);
     }
 
-    let cumBudget = 0, cumCA = 0, bev = -1;
+    // Use the ramp-up curve (same as the histogram) to distribute monthly CA & leads
+    const { totalLeads } = totals;
+    let bev = -1;
     const data = Array.from({ length: 12 }, (_, i) => {
       const m = i + 1;
       const calMonth = (startMonth + i) % 12;
       const label = seasonalityEnabled ? MONTH_NAMES[calMonth] : `M${m}`;
-      const ca = totalCA * (m / 12) * weights[i];
-      cumBudget += monthlyBudget;
-      cumCA     += ca;
-      if (bev === -1 && cumCA >= cumBudget) bev = m;
-      return { month: label, budget: Math.round(monthlyBudget), ca: Math.round(ca), isBev: bev === m };
+      const rampPct = RAMP_UP_DATA[i].pct / 100;
+      const ca = totalCA * rampPct * weights[i];
+      const leads = totalLeads * rampPct * weights[i];
+      // Break-even = first month where monthly CA covers monthly budget cost
+      if (bev === -1 && ca >= monthlyBudget) bev = m;
+      return { month: label, budget: Math.round(monthlyBudget), ca: Math.round(ca), leads: Math.round(leads * 10) / 10, isBev: bev === m };
     });
     const bevLabel = bev > 0
       ? (seasonalityEnabled ? MONTH_NAMES[(startMonth + bev - 1) % 12] : `M${bev}`)
@@ -1003,7 +1006,35 @@ export default function SimulateurSEO() {
             </ResponsiveContainer>
           </div>
 
-          {/* BLOC 4b — MONTÉE EN PUISSANCE */}
+          {/* BLOC 4b — LEADS PAR MOIS */}
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ ...secTitle, marginBottom: 10 }}>
+              <span style={{ color: ORANGE, fontSize: 10 }}>◆</span> Leads captés par mois — 12 mois
+            </div>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={monthlyData} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={G3} vertical={false} />
+                <XAxis dataKey="month" tick={{ fill: '#7a9e8e', fontSize: 11 }} axisLine={{ stroke: G3 }} tickLine={false} />
+                <YAxis tick={{ fill: '#7a9e8e', fontSize: 10 }} axisLine={{ stroke: G3 }} tickLine={false} width={30} />
+                <Tooltip
+                  cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+                  content={({ active, payload, label }) => active && payload?.length ? (
+                    <div style={{ background: G2, border: `1px solid ${G3}`, borderRadius: 8, padding: '8px 12px', fontSize: 12 }}>
+                      <div style={{ color: CREAM, fontWeight: 700, marginBottom: 4 }}>{label}</div>
+                      <div style={{ color: ORANGE }}>{payload[0].value} lead{Number(payload[0].value) > 1 ? 's' : ''}</div>
+                    </div>
+                  ) : null}
+                />
+                <Bar dataKey="leads" fill={ORANGE} radius={[4, 4, 0, 0]} maxBarSize={36} name="Leads" />
+                {breakEvenMonth && (
+                  <ReferenceLine x={breakEvenMonth} stroke={ORANGE} strokeDasharray="4 4" strokeWidth={1.5}
+                    label={{ value: 'Break-even', fill: ORANGE, fontSize: 10, position: 'insideTopRight' }} />
+                )}
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* BLOC 4c — MONTÉE EN PUISSANCE */}
           <div style={{ marginBottom: 14 }}>
             <div style={{ ...secTitle, marginBottom: 4 }}>
               <span style={{ color: ORANGE, fontSize: 10 }}>◆</span> Montée en puissance SEO/GEO — 1ère année
