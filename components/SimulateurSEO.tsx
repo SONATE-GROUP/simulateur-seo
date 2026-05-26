@@ -744,15 +744,12 @@ export default function SimulateurSEO() {
           {/* BUDGET */}
           <div style={cardLight}>
             <div style={secTitleLight}>
-              <span style={{ color: ORANGE, fontSize: 10 }}>◆</span> Budget
+              <span style={{ color: ORANGE, fontSize: 10 }}>◆</span> Accompagnement SEO/GEO
             </div>
             <Slider light label="Coût par page (création + optimisation)" value={costPerPage} min={300} max={2000} step={50} unit="€"
               onChange={v => update({ costPerPage: v })} />
-            <Slider light label="Ratio budget alloué" value={budgetRatio} min={20} max={100} unit="%"
-              hint={`Budget total : ${fmtC(totals.budgetTotal)}`}
-              onChange={v => update({ budgetRatio: v })} />
             <div style={{ backgroundColor: 'rgba(0,0,0,0.06)', borderRadius: 6, padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ color: L_MED, fontSize: 12 }}>{totals.nbPages} pages × {fmtC(costPerPage)} × {budgetRatio}%</span>
+              <span style={{ color: L_MED, fontSize: 12 }}>{totals.nbPages} pages × {fmtC(costPerPage)}</span>
               <span style={{ color: ORANGE, fontWeight: 700, fontSize: 15 }}>{fmtC(totals.budgetTotal)}</span>
             </div>
           </div>
