@@ -35,9 +35,13 @@ interface SimState {
   costPerPage: number;
   budgetRatio: number;
   seasonalityEnabled: boolean;
-  startMonth: number;            // 0 = Janvier
-  highSeasonMonths: boolean[];   // [Jan, Fév, Mar, ..., Déc]
-  highSeasonMultiplier: number;  // ex: 3 = haute saison = 3× la moyenne
+  startMonth: number;
+  highSeasonMonths: boolean[];
+  highSeasonMultiplier: number;
+  kwMultiplier: 1 | 4;
+  businessType: 'ecommerce' | 'lead';
+  tauxRdv: number;
+  tauxClosing: number;
 }
 
 /* ─── CONSTANTS ──────────────────────────────────────────────── */
@@ -89,6 +93,10 @@ const INITIAL: SimState = {
   startMonth: 0,
   highSeasonMonths: Array(12).fill(false),
   highSeasonMultiplier: 3,
+  kwMultiplier: 1,
+  businessType: 'ecommerce',
+  tauxRdv: 60,
+  tauxClosing: 30,
 };
 
 /* ─── PALETTE ────────────────────────────────────────────────── */
@@ -236,99 +244,39 @@ function KPICard({ label, value, sub, accent = false }: {
 }
 
 /* ─── FUNNEL ─────────────────────────────────────────────────── */
-function ConversionFunnel({ impressions, traffic, leads, caMonthly, basketValue }: {
-  impressions: number; traffic: number; leads: number; caMonthly: number; basketValue: number;
+function ConversionFunnel({ stages, rates }: {
+  stages: { label: string; value: string; active: boolean }[];
+  rates: string[];
 }) {
-  // SVG triangle dimensions
-  const W = 400;        // triangle base width
-  const H = 400;        // triangle height
-  const TIP = 60;       // bottom width (not a true point, for readability)
-  const BAND = H / 4;   // 100 per section
-  const SVG_W = 520;    // total SVG width (extra space for rates on right)
+  const N = stages.length;
+  const W = 400;
+  const BAND = 80;
+  const H = N * BAND;
+  const TIP = 60;
+  const SVG_W = 520;
 
-  // Left/right edge at a given y
   const xl = (y: number) => (W - TIP) * y / (2 * H);
   const xr = (y: number) => W - xl(y);
 
-  const COLORS = ['#e8571a', '#d04c15', '#a63c0f', '#7a2c09'];
-
-  const stages = [
-    { label: 'Impressions',  value: impressions, fmt: fmtN },
-    { label: 'Clics',        value: traffic,     fmt: fmtN },
-    { label: 'Leads',        value: leads,        fmt: (v: number) => v.toFixed(1) },
-    { label: 'CA / mois',   value: caMonthly,   fmt: fmtC },
-  ];
-
-  // Conversion rates shown between bands (on the right)
-  const rates = [
-    impressions > 0 ? `↓ ${fmtP((traffic  / impressions) * 100)}` : '—',
-    traffic     > 0 ? `↓ ${fmtP((leads    / traffic)     * 100)}` : '—',
-    leads       > 0 ? `↓ ${fmtP((caMonthly / (leads * basketValue)) * 100)}` : `× ${basketValue}€`,
-  ];
+  const COLORS_ON  = ['#e8571a', '#d04c15', '#b84412', '#a63c0f', '#8a300a', '#6e2407'];
+  const COLORS_OFF = ['#3a5c4e', '#2d4a3e', '#243d33', '#1e3329', '#192d24', '#152520'];
 
   return (
     <div style={{ display: 'flex', justifyContent: 'center', padding: '4px 0 8px' }}>
-      <svg
-        viewBox={`0 0 ${SVG_W} ${H + 4}`}
-        style={{ width: '100%', maxWidth: 560 }}
-        aria-label="Entonnoir de conversion"
-      >
+      <svg viewBox={`0 0 ${SVG_W} ${H + 4}`} style={{ width: '100%', maxWidth: 560 }} aria-label="Entonnoir de conversion">
         {stages.map((stage, i) => {
-          const y1 = i * BAND;
-          const y2 = (i + 1) * BAND;
-          const cy = (y1 + y2) / 2;
-          // Trapezoid polygon for this band
+          const y1 = i * BAND, y2 = (i + 1) * BAND, cy = (y1 + y2) / 2;
           const pts = `${xl(y1)},${y1} ${xr(y1)},${y1} ${xr(y2)},${y2} ${xl(y2)},${y2}`;
-
+          const color = stage.active ? COLORS_ON[i] : COLORS_OFF[i];
+          const textAlpha = stage.active ? 1 : 0.35;
           return (
             <g key={i}>
-              {/* Band fill */}
-              <polygon points={pts} fill={COLORS[i]} />
-
-              {/* Thin separator between bands */}
-              {i > 0 && (
-                <line
-                  x1={xl(y1)} y1={y1} x2={xr(y1)} y2={y1}
-                  stroke="rgba(0,0,0,0.18)" strokeWidth={1}
-                />
-              )}
-
-              {/* Label (small, above value) */}
-              <text
-                x={W / 2} y={cy - 12}
-                fill="rgba(255,255,255,0.80)"
-                fontSize={13}
-                textAnchor="middle"
-                fontFamily="Inter, -apple-system, sans-serif"
-              >
-                {stage.label}
-              </text>
-
-              {/* Value (large, bold) */}
-              <text
-                x={W / 2} y={cy + 15}
-                fill="white"
-                fontSize={22}
-                fontWeight="800"
-                textAnchor="middle"
-                fontFamily="Inter, -apple-system, sans-serif"
-              >
-                {stage.fmt(stage.value)}
-              </text>
-
-              {/* Conversion rate label on the right, at the band transition */}
-              {i < 3 && (
-                <text
-                  x={xr(y2) + 14}
-                  y={y2 + 5}
-                  fill={ORANGE}
-                  fontSize={12}
-                  fontWeight="600"
-                  textAnchor="start"
-                  fontFamily="Inter, -apple-system, sans-serif"
-                >
-                  {rates[i]}
-                </text>
+              <polygon points={pts} fill={color} />
+              {i > 0 && <line x1={xl(y1)} y1={y1} x2={xr(y1)} y2={y1} stroke="rgba(0,0,0,0.18)" strokeWidth={1} />}
+              <text x={W / 2} y={cy - 12} fill={`rgba(255,255,255,${textAlpha * 0.8})`} fontSize={12} textAnchor="middle" fontFamily="Inter, sans-serif">{stage.label}</text>
+              <text x={W / 2} y={cy + 14} fill={`rgba(255,255,255,${textAlpha})`} fontSize={20} fontWeight="800" textAnchor="middle" fontFamily="Inter, sans-serif">{stage.value}</text>
+              {i < N - 1 && rates[i] && (
+                <text x={xr(y2) + 12} y={y2 + 5} fill={stage.active ? ORANGE : '#3a5c4e'} fontSize={11} fontWeight="600" textAnchor="start" fontFamily="Inter, sans-serif">{rates[i]}</text>
               )}
             </g>
           );
@@ -382,6 +330,7 @@ export default function SimulateurSEO() {
     crTransactionnel, crPreAchat, crIntermediaire, crInformationnel,
     costPerPage, budgetRatio,
     seasonalityEnabled, startMonth, highSeasonMonths, highSeasonMultiplier,
+    kwMultiplier, businessType, tauxRdv, tauxClosing,
   } = state;
 
   const cr: Record<Intention, number> = {
@@ -412,17 +361,25 @@ export default function SimulateurSEO() {
 
   /* Totals */
   const totals = useMemo(() => {
-    const totalCA      = kwResults.reduce((s, k) => s + k.ca, 0);
-    const totalLeads   = kwResults.reduce((s, k) => s + k.leads, 0);
-    const totalTraffic = kwResults.reduce((s, k) => s + k.traffic, 0);
-    const totalImpressions = keywords.reduce((s, k) => s + k.volume, 0);
+    const rawLeads   = kwResults.reduce((s, k) => s + k.leads, 0);
+    // For lead mode, CA is gated by RDV + closing rates
+    const leadConv   = businessType === 'lead' ? (tauxRdv / 100) * (tauxClosing / 100) : 1;
+    const rawCA      = kwResults.reduce((s, k) => s + k.leads * basketValue * leadConv, 0);
+    const totalLeads   = rawLeads   * kwMultiplier;
+    const totalCA      = rawCA      * kwMultiplier;
+    const totalTraffic = kwResults.reduce((s, k) => s + k.traffic, 0) * kwMultiplier;
+    const totalImpressions = keywords.reduce((s, k) => s + k.volume, 0) * kwMultiplier;
     const topics    = new Set(keywords.map(k => k.topic).filter(Boolean));
-    const nbPages   = topics.size || keywords.length;
+    const nbPages   = (topics.size || keywords.length) * kwMultiplier;
     const budgetTotal  = nbPages * costPerPage * (budgetRatio / 100);
     const roi2ans      = budgetTotal > 0 ? ((totalCA * 18.5 - budgetTotal) / budgetTotal) * 100 : 0;
     const roiMult      = budgetTotal > 0 ? (totalCA * 18.5) / budgetTotal : 0;
-    return { totalCA, totalLeads, totalTraffic, totalImpressions, nbPages, budgetTotal, roi2ans, roiMult };
-  }, [kwResults, keywords, costPerPage, budgetRatio]);
+    // Extra lead-mode values (unscaled, for funnel display)
+    const baseLeads  = rawLeads;
+    const baseRdv    = baseLeads * (tauxRdv / 100);
+    const baseClosing = baseRdv * (tauxClosing / 100);
+    return { totalCA, totalLeads, totalTraffic, totalImpressions, nbPages, budgetTotal, roi2ans, roiMult, baseLeads, baseRdv, baseClosing };
+  }, [kwResults, keywords, costPerPage, budgetRatio, kwMultiplier, businessType, tauxRdv, tauxClosing, basketValue]);
 
   /* Monthly projection */
   const { monthlyData, breakEvenMonth } = useMemo(() => {
@@ -757,6 +714,13 @@ export default function SimulateurSEO() {
             <Slider light label="Pré-achat" value={crPreAchat} min={0} max={20} step={0.5} unit="%" onChange={v => update({ crPreAchat: v })} />
             <Slider light label="Intermédiaire" value={crIntermediaire} min={0} max={10} step={0.1} unit="%" onChange={v => update({ crIntermediaire: v })} />
             <Slider light label="Informationnel" value={crInformationnel} min={0} max={5} step={0.1} unit="%" onChange={v => update({ crInformationnel: v })} />
+            {businessType === 'lead' && (
+              <>
+                <div style={{ borderTop: `1px solid ${G3}`, margin: '10px 0 8px', opacity: 0.4 }} />
+                <Slider light label="Taux prise de RDV" value={tauxRdv} min={10} max={100} step={5} unit="%" onChange={v => update({ tauxRdv: v })} />
+                <Slider light label="Taux closing" value={tauxClosing} min={5} max={100} step={5} unit="%" onChange={v => update({ tauxClosing: v })} />
+              </>
+            )}
           </div>
 
           {/* BUDGET */}
@@ -907,6 +871,25 @@ export default function SimulateurSEO() {
             </div>
           </div>
 
+          {/* NOTICE — keyword multiplier */}
+          <div style={{ backgroundColor: `${ORANGE}18`, border: `1px solid ${ORANGE}44`, borderRadius: 8, padding: '10px 14px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12, fontSize: 12 }}>
+            <span style={{ color: '#c8a882', flex: 1 }}>
+              ⚠️ Projection basée sur <strong style={{ color: CREAM }}>{keywords.length} expressions clés</strong>. En pratique, l'accompagnement couvre bien plus de mots-clés.
+            </span>
+            <button
+              onClick={() => update({ kwMultiplier: kwMultiplier === 1 ? 4 : 1 })}
+              style={{
+                backgroundColor: kwMultiplier === 4 ? ORANGE : 'transparent',
+                border: `1px solid ${ORANGE}`,
+                borderRadius: 6, padding: '5px 12px',
+                color: kwMultiplier === 4 ? 'white' : ORANGE,
+                fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+              }}
+            >
+              {kwMultiplier === 4 ? '✓ ×4 actif — 24 mots-clés' : '× Simuler ×4 (24 mots-clés)'}
+            </button>
+          </div>
+
           {/* BLOC 1 — MAIN KPIs */}
           <div style={{ display: 'flex', gap: 14, marginBottom: 14 }}>
             <div style={{
@@ -950,16 +933,59 @@ export default function SimulateurSEO() {
 
           {/* BLOC 3 — FUNNEL */}
           <div style={card}>
-            <div style={secTitle}>
+            <div style={{ ...secTitle, marginBottom: 10 }}>
               <span style={{ color: ORANGE, fontSize: 10 }}>◆</span> Entonnoir de conversion
+              {/* Business type toggle */}
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
+                {(['ecommerce', 'lead'] as const).map(t => (
+                  <button key={t} onClick={() => update({ businessType: t })} style={{
+                    fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 4, cursor: 'pointer',
+                    border: `1px solid ${businessType === t ? ORANGE : G3}`,
+                    backgroundColor: businessType === t ? `${ORANGE}22` : 'transparent',
+                    color: businessType === t ? ORANGE : '#5a7a6a',
+                  }}>{t === 'ecommerce' ? 'E-commerce' : 'Lead'}</button>
+                ))}
+              </div>
             </div>
-            <ConversionFunnel
-              impressions={totals.totalImpressions}
-              traffic={totals.totalTraffic}
-              leads={totals.totalLeads}
-              caMonthly={totals.totalCA}
-              basketValue={basketValue}
-            />
+            {(() => {
+              const { totalImpressions: imp, totalTraffic: traf, baseLeads, baseRdv, baseClosing, totalCA } = totals;
+              if (businessType === 'lead') {
+                return (
+                  <ConversionFunnel
+                    stages={[
+                      { label: 'Impressions',   value: fmtN(imp),               active: true },
+                      { label: 'Clics',          value: fmtN(traf),              active: true },
+                      { label: 'Leads',          value: baseLeads.toFixed(1),    active: true },
+                      { label: 'Prise de RDV',   value: baseRdv.toFixed(1),      active: true },
+                      { label: 'Closing',        value: baseClosing.toFixed(1),  active: true },
+                      { label: 'CA / mois',      value: fmtC(totalCA),           active: true },
+                    ]}
+                    rates={[
+                      imp   > 0 ? `↓ ${fmtP(traf / imp * 100)}`         : '—',
+                      traf  > 0 ? `↓ ${fmtP(baseLeads / traf * 100)}`   : '—',
+                      `↓ ${tauxRdv}%`,
+                      `↓ ${tauxClosing}%`,
+                      `× ${basketValue}€`,
+                    ]}
+                  />
+                );
+              }
+              return (
+                <ConversionFunnel
+                  stages={[
+                    { label: 'Impressions',  value: fmtN(imp),            active: true },
+                    { label: 'Clics',        value: fmtN(traf),           active: true },
+                    { label: 'Transactions', value: baseLeads.toFixed(1), active: true },
+                    { label: 'CA / mois',    value: fmtC(totalCA),        active: true },
+                  ]}
+                  rates={[
+                    imp  > 0 ? `↓ ${fmtP(traf / imp * 100)}`        : '—',
+                    traf > 0 ? `↓ ${fmtP(baseLeads / traf * 100)}`  : '—',
+                    `× ${basketValue}€`,
+                  ]}
+                />
+              );
+            })()}
           </div>
 
           {/* BLOC 4 — MONTHLY PROJECTION */}
