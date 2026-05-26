@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect, CSSProperties } from 'react';
 import {
-  ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid,
+  ComposedChart, BarChart, Bar, Line, Cell, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, ReferenceLine, Legend,
 } from 'recharts';
 
@@ -357,6 +357,21 @@ function ChartTooltip({ active, payload, label }: {
 }
 
 /* ─── MAIN COMPONENT ─────────────────────────────────────────── */
+const RAMP_UP_DATA = [
+  { mois: 'M1',  pct: 2  },
+  { mois: 'M2',  pct: 3  },
+  { mois: 'M3',  pct: 6  },
+  { mois: 'M4',  pct: 20 },
+  { mois: 'M5',  pct: 34 },
+  { mois: 'M6',  pct: 50 },
+  { mois: 'M7',  pct: 61 },
+  { mois: 'M8',  pct: 70 },
+  { mois: 'M9',  pct: 76 },
+  { mois: 'M10', pct: 82 },
+  { mois: 'M11', pct: 87 },
+  { mois: 'M12', pct: 92 },
+];
+
 export default function SimulateurSEO() {
   const [state, setState] = useState<SimState>(INITIAL);
   const [linkCopied, setLinkCopied] = useState(false);
@@ -986,6 +1001,49 @@ export default function SimulateurSEO() {
                 )}
               </ComposedChart>
             </ResponsiveContainer>
+          </div>
+
+          {/* BLOC 4b — MONTÉE EN PUISSANCE */}
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ ...secTitle, marginBottom: 4 }}>
+              <span style={{ color: ORANGE, fontSize: 10 }}>◆</span> Montée en puissance SEO/GEO — 1ère année
+            </div>
+            <div style={{ color: '#5a7a6a', fontSize: 11, marginBottom: 12 }}>
+              Les premiers résultats apparaissent à partir du 4ème mois (indexation + premières positions), avec une accélération à 6 mois.
+            </div>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={RAMP_UP_DATA} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={G3} vertical={false} />
+                <XAxis dataKey="mois" tick={{ fill: '#7a9e8e', fontSize: 11 }} axisLine={{ stroke: G3 }} tickLine={false} />
+                <YAxis hide domain={[0, 100]} />
+                <Tooltip
+                  cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+                  content={({ active, payload, label }) => active && payload?.length ? (
+                    <div style={{ background: G2, border: `1px solid ${G3}`, borderRadius: 8, padding: '8px 12px', fontSize: 12 }}>
+                      <div style={{ color: CREAM, fontWeight: 700, marginBottom: 4 }}>{label}</div>
+                      <div style={{ color: ORANGE }}>{payload[0].value}% du potentiel</div>
+                    </div>
+                  ) : null}
+                />
+                <Bar dataKey="pct" radius={[4, 4, 0, 0]} maxBarSize={36}>
+                  {RAMP_UP_DATA.map((entry, i) => (
+                    <Cell
+                      key={i}
+                      fill={i < 3 ? G4 : i < 6 ? `${ORANGE}bb` : ORANGE}
+                    />
+                  ))}
+                </Bar>
+                <ReferenceLine x="M4" stroke={ORANGE} strokeDasharray="4 4" strokeWidth={1.5}
+                  label={{ value: 'Premiers résultats', fill: ORANGE, fontSize: 9, position: 'insideTopRight' }} />
+                <ReferenceLine x="M6" stroke="#3b82f6" strokeDasharray="4 4" strokeWidth={1.5}
+                  label={{ value: 'Accélération', fill: '#3b82f6', fontSize: 9, position: 'insideTopRight' }} />
+              </BarChart>
+            </ResponsiveContainer>
+            <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 10, color: '#5a7a6a' }}>
+              <span><span style={{ display: 'inline-block', width: 10, height: 10, backgroundColor: G4, borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} />M1–M3 : Production & indexation</span>
+              <span><span style={{ display: 'inline-block', width: 10, height: 10, backgroundColor: `${ORANGE}bb`, borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} />M4–M6 : Premiers résultats</span>
+              <span><span style={{ display: 'inline-block', width: 10, height: 10, backgroundColor: ORANGE, borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} />M7–M12 : Consolidation</span>
+            </div>
           </div>
 
           {/* BLOC 5 — CPL */}
