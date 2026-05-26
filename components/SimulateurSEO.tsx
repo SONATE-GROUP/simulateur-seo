@@ -433,7 +433,8 @@ export default function SimulateurSEO() {
       const leads = totalLeads * rampPct * weights[i];
       // Break-even = first month where monthly CA covers monthly budget cost
       if (bev === -1 && ca >= monthlyBudget) bev = m;
-      return { month: label, budget: Math.round(monthlyBudget), ca: Math.round(ca), leads: Math.round(leads * 10) / 10, isBev: bev === m };
+      const cplMonth = leads > 0.5 ? Math.round(monthlyBudget / leads) : null;
+      return { month: label, budget: Math.round(monthlyBudget), ca: Math.round(ca), leads: Math.round(leads * 10) / 10, cplMonth, isBev: bev === m };
     });
     const bevLabel = bev > 0
       ? (seasonalityEnabled ? MONTH_NAMES[(startMonth + bev - 1) % 12] : `M${bev}`)
@@ -1034,6 +1035,19 @@ export default function SimulateurSEO() {
                 />
               );
             })()}
+            {/* CPL summary */}
+            <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
+              {([
+                { label: 'CPL an 1', value: cpl.an1 },
+                { label: 'CPL an 2', value: cpl.an2 },
+                { label: 'CPL an 3', value: cpl.an3 },
+              ] as { label: string; value: number }[]).map(({ label, value }) => (
+                <div key={label} style={{ flex: 1, minWidth: 80, background: G5, borderRadius: 8, padding: '8px 12px', textAlign: 'center' }}>
+                  <div style={{ color: '#5a7a6a', fontSize: 10, marginBottom: 2 }}>{label}</div>
+                  <div style={{ color: ORANGE, fontWeight: 700, fontSize: 16 }}>{fmtC(value)}</div>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* BLOC 4 — MONTHLY PROJECTION */}
@@ -1085,26 +1099,32 @@ export default function SimulateurSEO() {
             <div style={{ ...secTitle, marginBottom: 10 }}>
               <span style={{ color: ORANGE, fontSize: 10 }}>◆</span> Leads captés par mois — 12 mois
             </div>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={monthlyData} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}>
+            <ResponsiveContainer width="100%" height={220}>
+              <ComposedChart data={monthlyData} margin={{ top: 8, right: 48, left: 0, bottom: 4 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={G3} vertical={false} />
                 <XAxis dataKey="month" tick={{ fill: '#7a9e8e', fontSize: 11 }} axisLine={{ stroke: G3 }} tickLine={false} />
-                <YAxis tick={{ fill: '#7a9e8e', fontSize: 10 }} axisLine={{ stroke: G3 }} tickLine={false} width={30} />
+                <YAxis yAxisId="leads" tick={{ fill: '#7a9e8e', fontSize: 10 }} axisLine={{ stroke: G3 }} tickLine={false} width={30} />
+                <YAxis yAxisId="cpl" orientation="right" tick={{ fill: '#7a9e8e', fontSize: 10 }} axisLine={false} tickLine={false} width={46}
+                  tickFormatter={v => v >= 1000 ? `${(v / 1000).toFixed(0)}k€` : `${v}€`} />
                 <Tooltip
                   cursor={{ fill: 'rgba(255,255,255,0.04)' }}
                   content={({ active, payload, label }) => active && payload?.length ? (
                     <div style={{ background: G2, border: `1px solid ${G3}`, borderRadius: 8, padding: '8px 12px', fontSize: 12 }}>
                       <div style={{ color: CREAM, fontWeight: 700, marginBottom: 4 }}>{label}</div>
-                      <div style={{ color: ORANGE }}>{payload[0].value} lead{Number(payload[0].value) > 1 ? 's' : ''}</div>
+                      {payload.map((p, idx) => p.dataKey === 'leads'
+                        ? <div key={idx} style={{ color: ORANGE }}>{p.value} lead{Number(p.value) > 1 ? 's' : ''}</div>
+                        : p.value != null ? <div key={idx} style={{ color: '#a8c5b5' }}>CPL : {p.value} €</div> : null
+                      )}
                     </div>
                   ) : null}
                 />
-                <Bar dataKey="leads" fill={ORANGE} radius={[4, 4, 0, 0]} maxBarSize={36} name="Leads" />
+                <Bar yAxisId="leads" dataKey="leads" fill={ORANGE} radius={[4, 4, 0, 0]} maxBarSize={36} name="Leads" />
+                <Line yAxisId="cpl" dataKey="cplMonth" stroke="#a8c5b5" strokeWidth={2} dot={false} name="CPL" connectNulls={false} />
                 {breakEvenMonth && (
-                  <ReferenceLine x={breakEvenMonth} stroke={ORANGE} strokeDasharray="4 4" strokeWidth={1.5}
+                  <ReferenceLine yAxisId="leads" x={breakEvenMonth} stroke={ORANGE} strokeDasharray="4 4" strokeWidth={1.5}
                     label={{ value: 'Break-even', fill: ORANGE, fontSize: 10, position: 'insideTopRight' }} />
                 )}
-              </BarChart>
+              </ComposedChart>
             </ResponsiveContainer>
           </div>
 
