@@ -535,15 +535,21 @@ export default function SimulateurSEO() {
         display: 'flex', alignItems: 'center', gap: 20, zIndex: 100,
       }}>
         {/* Logo — background-image crop: original 1762×990, Sonate text at y≈8–50% */}
-        <div style={{
-          backgroundImage: 'url(/logo-sonate.png)',
-          backgroundRepeat: 'no-repeat',
-          backgroundSize: '270px auto',
-          backgroundPosition: '-5px -12px',
-          width: 252,
-          height: 65,
-          flexShrink: 0,
-        }} role="img" aria-label="Sonate" />
+        <div style={{ position: 'relative', width: 252, height: 65, flexShrink: 0 }}>
+          <div style={{
+            backgroundImage: 'url(/logo-sonate.png)',
+            backgroundRepeat: 'no-repeat',
+            backgroundSize: '270px auto',
+            backgroundPosition: '-5px -12px',
+            width: '100%',
+            height: '100%',
+          }} role="img" aria-label="Sonate" />
+          <span style={{
+            position: 'absolute', top: 2, right: 0,
+            fontSize: 8, fontWeight: 800, letterSpacing: '0.15em',
+            color: ORANGE, lineHeight: 1,
+          }}>Accompagnement SEO/GEO</span>
+        </div>
 
         <div style={{ width: 1, height: 40, backgroundColor: '#e0e0e0', flexShrink: 0 }} />
 
@@ -645,7 +651,7 @@ export default function SimulateurSEO() {
                 <thead>
                   <tr style={{ color: L_MED }}>
                     <th style={{ padding: '3px 4px 6px 0', textAlign: 'left' }}>Mot clé</th>
-                    <th style={{ padding: '3px 2px 6px', textAlign: 'center', minWidth: 52 }}>Volume</th>
+                    <th style={{ padding: '3px 2px 6px', textAlign: 'center', minWidth: 52 }}>Volume mensuel</th>
                     <th style={{ padding: '3px 2px 6px', textAlign: 'center', minWidth: 36 }}>Difficulté</th>
                     <th style={{ padding: '3px 2px 6px', textAlign: 'center', minWidth: 88 }}>Proximité</th>
                     <th style={{ padding: '3px 2px 6px', textAlign: 'center', minWidth: 100 }}>Intention</th>
