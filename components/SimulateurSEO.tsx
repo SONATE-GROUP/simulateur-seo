@@ -10,6 +10,11 @@ import {
 type Proximity = 1 | 2 | 3;
 type Intention = 1 | 2 | 3 | 4;
 
+interface Category {
+  id: string;
+  name: string;
+}
+
 interface Keyword {
   id: string;
   keyword: string;
@@ -18,6 +23,7 @@ interface Keyword {
   proximity: Proximity;
   intention: Intention;
   topic: string;
+  categoryId: string;
 }
 
 interface SimState {
@@ -42,6 +48,7 @@ interface SimState {
   businessType: 'ecommerce' | 'lead';
   tauxRdv: number;
   tauxClosing: number;
+  categories: Category[];
 }
 
 /* ─── CONSTANTS ──────────────────────────────────────────────── */
@@ -59,12 +66,12 @@ const INTENT_COLOR: Record<number, string> = {
 };
 
 const DEFAULT_KEYWORDS: Keyword[] = [
-  { id: '1', keyword: 'acheter graines tomates', volume: 2400, difficulty: 35, proximity: 1, intention: 1, topic: 'Graines tomates' },
-  { id: '2', keyword: 'meilleures graines potager', volume: 1800, difficulty: 42, proximity: 2, intention: 2, topic: 'Graines potager' },
-  { id: '3', keyword: 'semences bio pas cher', volume: 3200, difficulty: 38, proximity: 1, intention: 1, topic: 'Semences bio' },
-  { id: '4', keyword: 'comment semer des fleurs', volume: 5400, difficulty: 25, proximity: 3, intention: 4, topic: 'Guide semis' },
-  { id: '5', keyword: 'graines de courge', volume: 2100, difficulty: 30, proximity: 2, intention: 2, topic: 'Graines courge' },
-  { id: '6', keyword: 'jardinerie en ligne', volume: 8900, difficulty: 65, proximity: 3, intention: 1, topic: 'Jardinerie' },
+  { id: '1', keyword: 'acheter graines tomates',   volume: 2400, difficulty: 35, proximity: 1, intention: 1, topic: 'Graines tomates', categoryId: 'cat1' },
+  { id: '2', keyword: 'meilleures graines potager', volume: 1800, difficulty: 42, proximity: 2, intention: 2, topic: 'Graines potager', categoryId: 'cat1' },
+  { id: '3', keyword: 'semences bio pas cher',      volume: 3200, difficulty: 38, proximity: 1, intention: 1, topic: 'Semences bio',    categoryId: 'cat1' },
+  { id: '4', keyword: 'comment semer des fleurs',   volume: 5400, difficulty: 25, proximity: 3, intention: 4, topic: 'Guide semis',     categoryId: 'cat2' },
+  { id: '5', keyword: 'graines de courge',           volume: 2100, difficulty: 30, proximity: 2, intention: 2, topic: 'Graines courge',  categoryId: 'cat1' },
+  { id: '6', keyword: 'jardinerie en ligne',         volume: 8900, difficulty: 65, proximity: 3, intention: 1, topic: 'Jardinerie',      categoryId: 'cat2' },
 ];
 
 const MONTH_NAMES = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
@@ -97,6 +104,10 @@ const INITIAL: SimState = {
   businessType: 'ecommerce',
   tauxRdv: 60,
   tauxClosing: 30,
+  categories: [
+    { id: 'cat1', name: 'Graines & Semences' },
+    { id: 'cat2', name: 'Jardinerie' },
+  ],
 };
 
 /* ─── PALETTE ────────────────────────────────────────────────── */
@@ -323,14 +334,21 @@ const RAMP_UP_DATA = [
 export default function SimulateurSEO() {
   const [state, setState] = useState<SimState>(INITIAL);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [openCats, setOpenCats] = useState<Set<string>>(new Set(['cat1', 'cat2']));
   const resultsRef = useRef<HTMLDivElement>(null);
+
+  const toggleCat = (id: string) => setOpenCats(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
 
   const {
     prospectName, siteUrl, sector, da, healthScore, basketValue, keywords,
     crTransactionnel, crPreAchat, crIntermediaire, crInformationnel,
     costPerPage, budgetRatio,
     seasonalityEnabled, startMonth, highSeasonMonths, highSeasonMultiplier,
-    kwMultiplier, businessType, tauxRdv, tauxClosing,
+    kwMultiplier, businessType, tauxRdv, tauxClosing, categories,
   } = state;
 
   const cr: Record<Intention, number> = {
@@ -438,12 +456,31 @@ export default function SimulateurSEO() {
   /* Helpers */
   const update = (patch: Partial<SimState>) => setState(s => ({ ...s, ...patch }));
 
-  const addKw = () => setState(s => ({
+  const addKw = (catId: string) => setState(s => ({
     ...s,
-    keywords: [...s.keywords, { id: uid(), keyword: '', volume: 1000, difficulty: 30, proximity: 1, intention: 1, topic: '' }],
+    keywords: [...s.keywords, { id: uid(), keyword: '', volume: 1000, difficulty: 30, proximity: 1, intention: 1, topic: '', categoryId: catId }],
   }));
 
   const removeKw = (id: string) => setState(s => ({ ...s, keywords: s.keywords.filter(k => k.id !== id) }));
+
+  const addCategory = () => {
+    const id = uid();
+    setState(s => ({ ...s, categories: [...s.categories, { id, name: 'Nouvelle catégorie' }] }));
+    setOpenCats(prev => { const n = new Set(prev); n.add(id); return n; });
+  };
+
+  const removeCategory = (catId: string) => setState(s => {
+    const fallback = s.categories.find(c => c.id !== catId)?.id ?? '';
+    return {
+      ...s,
+      categories: s.categories.filter(c => c.id !== catId),
+      keywords: s.keywords.map(k => k.categoryId === catId ? { ...k, categoryId: fallback } : k),
+    };
+  });
+
+  const renameCategory = (catId: string, name: string) => setState(s => ({
+    ...s, categories: s.categories.map(c => c.id === catId ? { ...c, name } : c),
+  }));
 
   const updateKw = (id: string, field: keyof Keyword, value: unknown) =>
     setState(s => ({ ...s, keywords: s.keywords.map(k => k.id === id ? { ...k, [field]: value } : k) }));
@@ -606,103 +643,114 @@ export default function SimulateurSEO() {
             </div>
           </div>
 
-          {/* MOTS CLÉS */}
+          {/* MOTS CLÉS par catégorie */}
           <div style={{ ...cardLight, padding: '14px 12px' }}>
-            <div style={{ ...secTitleLight, marginBottom: 10 }}>
+            <div style={{ ...secTitleLight, marginBottom: 12 }}>
               <span style={{ color: ORANGE, fontSize: 10 }}>◆</span> Mots clés
-              <button
-                onClick={addKw}
-                style={{
-                  marginLeft: 'auto', backgroundColor: ORANGE, border: 'none',
-                  borderRadius: 4, padding: '3px 10px', color: 'white',
-                  fontSize: 12, cursor: 'pointer', fontWeight: 700,
-                }}
-              >
-                + Ajouter
+              <button onClick={addCategory} style={{ marginLeft: 'auto', backgroundColor: 'transparent', border: `1px solid ${ORANGE}`, borderRadius: 4, padding: '3px 10px', color: ORANGE, fontSize: 11, cursor: 'pointer', fontWeight: 600 }}>
+                + Catégorie
               </button>
             </div>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
-                <thead>
-                  <tr style={{ color: L_MED }}>
-                    <th style={{ padding: '3px 4px 6px 0', textAlign: 'left' }}>Mot clé</th>
-                    <th style={{ padding: '3px 2px 6px', textAlign: 'center', minWidth: 52 }}>Volume mensuel</th>
-                    <th style={{ padding: '3px 2px 6px', textAlign: 'center', minWidth: 36 }}>Difficulté</th>
-                    <th style={{ padding: '3px 2px 6px', textAlign: 'center', minWidth: 88 }}>Proximité</th>
-                    <th style={{ padding: '3px 2px 6px', textAlign: 'center', minWidth: 100 }}>Intention</th>
-                    <th style={{ padding: '3px 0px 6px 2px', textAlign: 'left', minWidth: 72 }}>Sujet</th>
-                    <th style={{ width: 18 }}></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {keywords.map(kw => (
-                    <tr key={kw.id} style={{ borderTop: `1px solid ${L_BORD}` }}>
-                      <td style={{ padding: '4px 4px 4px 0' }}>
-                        <input
-                          value={kw.keyword}
-                          onChange={e => updateKw(kw.id, 'keyword', e.target.value)}
-                          placeholder="mot clé…"
-                          style={{ backgroundColor: 'transparent', border: 'none', color: L_DARK, fontSize: 11, outline: 'none', width: '100%', minWidth: 100 }}
-                        />
-                      </td>
-                      <td style={{ padding: '4px 2px' }}>
-                        <input
-                          type="number" value={kw.volume}
-                          onChange={e => updateKw(kw.id, 'volume', Math.max(0, Number(e.target.value)))}
-                          style={{ width: 52, backgroundColor: L_INPUT, border: `1px solid ${L_BORD}`, borderRadius: 3, color: L_DARK, fontSize: 11, padding: '2px 4px', textAlign: 'center', outline: 'none' }}
-                        />
-                      </td>
-                      <td style={{ padding: '4px 2px' }}>
-                        <input
-                          type="number" value={kw.difficulty} min={0} max={100}
-                          onChange={e => updateKw(kw.id, 'difficulty', Math.min(100, Math.max(0, Number(e.target.value))))}
-                          style={{ width: 36, backgroundColor: L_INPUT, border: `1px solid ${L_BORD}`, borderRadius: 3, color: L_DARK, fontSize: 11, padding: '2px 4px', textAlign: 'center', outline: 'none' }}
-                        />
-                      </td>
-                      <td style={{ padding: '4px 2px' }}>
-                        <select
-                          value={kw.proximity}
-                          onChange={e => updateKw(kw.id, 'proximity', Number(e.target.value) as Proximity)}
-                          style={{ width: 88, backgroundColor: L_INPUT, border: `1px solid ${L_BORD}`, borderRadius: 3, color: L_DARK, fontSize: 11, padding: '2px 4px', outline: 'none', cursor: 'pointer' }}
-                        >
-                          <option value={1}>Sujet exact</option>
-                          <option value={2}>Très proche</option>
-                          <option value={3}>Thématique</option>
-                        </select>
-                      </td>
-                      <td style={{ padding: '4px 2px' }}>
-                        <select
-                          value={kw.intention}
-                          onChange={e => updateKw(kw.id, 'intention', Number(e.target.value) as Intention)}
-                          style={{ width: 100, backgroundColor: L_INPUT, border: `1px solid ${L_BORD}`, borderRadius: 3, color: L_DARK, fontSize: 11, padding: '2px 4px', outline: 'none', cursor: 'pointer' }}
-                        >
-                          <option value={1}>Transactionnel</option>
-                          <option value={2}>Pré-achat</option>
-                          <option value={3}>Intermédiaire</option>
-                          <option value={4}>Informationnel</option>
-                        </select>
-                      </td>
-                      <td style={{ padding: '4px 2px 4px 4px' }}>
-                        <input
-                          value={kw.topic}
-                          onChange={e => updateKw(kw.id, 'topic', e.target.value)}
-                          placeholder="sujet…"
-                          style={{ backgroundColor: 'transparent', border: 'none', color: L_MED, fontSize: 11, outline: 'none', width: '100%', minWidth: 66 }}
-                        />
-                      </td>
-                      <td style={{ padding: '4px 0', textAlign: 'center' }}>
-                        <button
-                          onClick={() => removeKw(kw.id)}
-                          style={{ background: 'none', border: 'none', color: '#c05050', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 0 }}
-                        >
-                          ×
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+
+            {categories.map((cat, catIdx) => {
+              const catKws = keywords.filter(k => k.categoryId === cat.id);
+              const isOpen = openCats.has(cat.id);
+              return (
+                <div key={cat.id} style={{ marginBottom: 8, border: `1px solid ${L_BORD}`, borderRadius: 8, overflow: 'hidden' }}>
+                  {/* Category header */}
+                  <div
+                    onClick={() => toggleCat(cat.id)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', backgroundColor: isOpen ? '#f0ece4' : '#f7f5f0', cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    <span style={{ fontSize: 10, color: L_MED, width: 12 }}>{isOpen ? '▼' : '▶'}</span>
+                    <input
+                      value={cat.name}
+                      onClick={e => e.stopPropagation()}
+                      onChange={e => renameCategory(cat.id, e.target.value)}
+                      style={{ flex: 1, border: 'none', background: 'transparent', color: L_DARK, fontWeight: 700, fontSize: 12, outline: 'none', cursor: 'text' }}
+                    />
+                    <span style={{ fontSize: 10, color: L_MED, whiteSpace: 'nowrap' }}>{catKws.length} mot{catKws.length !== 1 ? 's' : ''}-clé{catKws.length !== 1 ? 's' : ''}</span>
+                    <button
+                      onClick={e => { e.stopPropagation(); addKw(cat.id); if (!isOpen) toggleCat(cat.id); }}
+                      style={{ background: ORANGE, border: 'none', borderRadius: 3, padding: '2px 7px', color: 'white', fontSize: 10, cursor: 'pointer', fontWeight: 700, whiteSpace: 'nowrap' }}
+                    >+ Ajouter</button>
+                    {categories.length > 1 && (
+                      <button
+                        onClick={e => { e.stopPropagation(); removeCategory(cat.id); }}
+                        style={{ background: 'none', border: 'none', color: '#c05050', cursor: 'pointer', fontSize: 15, lineHeight: 1, padding: '0 2px' }}
+                      >×</button>
+                    )}
+                  </div>
+
+                  {/* Keywords table */}
+                  {isOpen && (
+                    <div style={{ overflowX: 'auto', padding: '4px 10px 8px' }}>
+                      {catKws.length === 0 ? (
+                        <div style={{ color: L_MED, fontSize: 11, padding: '8px 0', textAlign: 'center' }}>
+                          Aucun mot-clé — cliquez sur "+ Ajouter"
+                        </div>
+                      ) : (
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                          <thead>
+                            <tr style={{ color: L_MED }}>
+                              <th style={{ padding: '3px 4px 5px 0', textAlign: 'left' }}>Mot clé</th>
+                              <th style={{ padding: '3px 2px 5px', textAlign: 'center', minWidth: 52 }}>Volume mensuel</th>
+                              <th style={{ padding: '3px 2px 5px', textAlign: 'center', minWidth: 36 }}>Diff.</th>
+                              <th style={{ padding: '3px 2px 5px', textAlign: 'center', minWidth: 88 }}>Proximité</th>
+                              <th style={{ padding: '3px 2px 5px', textAlign: 'center', minWidth: 100 }}>Intention</th>
+                              <th style={{ padding: '3px 0 5px 2px', textAlign: 'left', minWidth: 66 }}>Sujet</th>
+                              <th style={{ width: 18 }} />
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {catKws.map(kw => (
+                              <tr key={kw.id} style={{ borderTop: `1px solid ${L_BORD}` }}>
+                                <td style={{ padding: '4px 4px 4px 0' }}>
+                                  <input value={kw.keyword} onChange={e => updateKw(kw.id, 'keyword', e.target.value)} placeholder="mot clé…"
+                                    style={{ backgroundColor: 'transparent', border: 'none', color: L_DARK, fontSize: 11, outline: 'none', width: '100%', minWidth: 100 }} />
+                                </td>
+                                <td style={{ padding: '4px 2px' }}>
+                                  <input type="number" value={kw.volume} onChange={e => updateKw(kw.id, 'volume', Math.max(0, Number(e.target.value)))}
+                                    style={{ width: 52, backgroundColor: L_INPUT, border: `1px solid ${L_BORD}`, borderRadius: 3, color: L_DARK, fontSize: 11, padding: '2px 4px', textAlign: 'center', outline: 'none' }} />
+                                </td>
+                                <td style={{ padding: '4px 2px' }}>
+                                  <input type="number" value={kw.difficulty} min={0} max={100} onChange={e => updateKw(kw.id, 'difficulty', Math.min(100, Math.max(0, Number(e.target.value))))}
+                                    style={{ width: 36, backgroundColor: L_INPUT, border: `1px solid ${L_BORD}`, borderRadius: 3, color: L_DARK, fontSize: 11, padding: '2px 4px', textAlign: 'center', outline: 'none' }} />
+                                </td>
+                                <td style={{ padding: '4px 2px' }}>
+                                  <select value={kw.proximity} onChange={e => updateKw(kw.id, 'proximity', Number(e.target.value) as Proximity)}
+                                    style={{ width: 88, backgroundColor: L_INPUT, border: `1px solid ${L_BORD}`, borderRadius: 3, color: L_DARK, fontSize: 11, padding: '2px 4px', outline: 'none', cursor: 'pointer' }}>
+                                    <option value={1}>Sujet exact</option>
+                                    <option value={2}>Très proche</option>
+                                    <option value={3}>Thématique</option>
+                                  </select>
+                                </td>
+                                <td style={{ padding: '4px 2px' }}>
+                                  <select value={kw.intention} onChange={e => updateKw(kw.id, 'intention', Number(e.target.value) as Intention)}
+                                    style={{ width: 100, backgroundColor: L_INPUT, border: `1px solid ${L_BORD}`, borderRadius: 3, color: L_DARK, fontSize: 11, padding: '2px 4px', outline: 'none', cursor: 'pointer' }}>
+                                    <option value={1}>Transactionnel</option>
+                                    <option value={2}>Pré-achat</option>
+                                    <option value={3}>Intermédiaire</option>
+                                    <option value={4}>Informationnel</option>
+                                  </select>
+                                </td>
+                                <td style={{ padding: '4px 2px 4px 4px' }}>
+                                  <input value={kw.topic} onChange={e => updateKw(kw.id, 'topic', e.target.value)} placeholder="sujet…"
+                                    style={{ backgroundColor: 'transparent', border: 'none', color: L_MED, fontSize: 11, outline: 'none', width: '100%', minWidth: 66 }} />
+                                </td>
+                                <td style={{ padding: '4px 0', textAlign: 'center' }}>
+                                  <button onClick={() => removeKw(kw.id)} style={{ background: 'none', border: 'none', color: '#c05050', cursor: 'pointer', fontSize: 15, lineHeight: 1, padding: 0 }}>×</button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           {/* TAUX DE CONVERSION */}
