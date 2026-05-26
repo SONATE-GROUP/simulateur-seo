@@ -535,9 +535,28 @@ export default function SimulateurSEO() {
         display: 'flex', alignItems: 'center', gap: 16, zIndex: 100,
       }}>
         {/* Logo */}
-        <div style={{ fontWeight: 800, fontSize: 17, whiteSpace: 'nowrap', color: CREAM }}>
-          <span style={{ color: ORANGE }}>SONATE</span>
-          <span style={{ color: CREAM }}> SEO</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0 }}>
+          <span style={{
+            fontFamily: "'Playfair Display', Georgia, serif",
+            fontWeight: 900,
+            fontSize: 26,
+            color: '#f0ebe1',
+            letterSpacing: '-0.5px',
+            lineHeight: 1,
+          }}>Sonate</span>
+          <span style={{
+            fontSize: 9,
+            fontWeight: 700,
+            letterSpacing: '0.18em',
+            textTransform: 'uppercase',
+            color: ORANGE,
+            border: `1px solid ${ORANGE}`,
+            borderRadius: 3,
+            padding: '2px 5px',
+            lineHeight: 1,
+            alignSelf: 'center',
+            marginTop: 2,
+          }}>SEO</span>
         </div>
 
         {/* Prospect fields */}
