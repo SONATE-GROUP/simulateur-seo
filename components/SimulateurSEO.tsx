@@ -669,7 +669,26 @@ export default function SimulateurSEO() {
                       onChange={e => renameCategory(cat.id, e.target.value)}
                       style={{ flex: 1, border: 'none', background: 'transparent', color: L_DARK, fontWeight: 700, fontSize: 12, outline: 'none', cursor: 'text' }}
                     />
-                    <span style={{ fontSize: 10, color: L_MED, whiteSpace: 'nowrap' }}>{catKws.length} mot{catKws.length !== 1 ? 's' : ''}-clé{catKws.length !== 1 ? 's' : ''}</span>
+                    <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                      <input
+                        type="number"
+                        value={catKws.length}
+                        min={0}
+                        onChange={e => {
+                          const target = Math.max(0, Number(e.target.value));
+                          const diff = target - catKws.length;
+                          if (diff > 0) {
+                            const newKws = Array.from({ length: diff }, () => ({ id: uid(), keyword: '', volume: 1000, difficulty: 30, proximity: 1 as Proximity, intention: 1 as Intention, topic: '', categoryId: cat.id }));
+                            setState(s => ({ ...s, keywords: [...s.keywords, ...newKws] }));
+                          } else if (diff < 0) {
+                            const toRemove = new Set(catKws.slice(diff).map(k => k.id));
+                            setState(s => ({ ...s, keywords: s.keywords.filter(k => !toRemove.has(k.id)) }));
+                          }
+                        }}
+                        style={{ width: 38, backgroundColor: L_INPUT, border: `1px solid ${L_BORD}`, borderRadius: 3, color: L_DARK, fontSize: 11, padding: '2px 4px', textAlign: 'center', outline: 'none' }}
+                      />
+                      <span style={{ fontSize: 10, color: L_MED }}>mots-clés</span>
+                    </div>
                     <button
                       onClick={e => { e.stopPropagation(); addKw(cat.id); if (!isOpen) toggleCat(cat.id); }}
                       style={{ background: ORANGE, border: 'none', borderRadius: 3, padding: '2px 7px', color: 'white', fontSize: 10, cursor: 'pointer', fontWeight: 700, whiteSpace: 'nowrap' }}
