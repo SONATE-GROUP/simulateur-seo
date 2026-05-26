@@ -1103,29 +1103,6 @@ export default function SimulateurSEO() {
             </div>
           </div>
 
-          {/* BLOC 5 — CPL */}
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ ...secTitle, marginBottom: 10 }}>
-              <span style={{ color: ORANGE, fontSize: 10 }}>◆</span> Évolution du coût par lead (CPL)
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
-              {([
-                { label: 'CPL à 1 an',  value: cpl.an1, mult: 6.5  },
-                { label: 'CPL à 2 ans', value: cpl.an2, mult: 18.5 },
-                { label: 'CPL à 3 ans', value: cpl.an3, mult: 30.5 },
-                { label: 'CPL à 5 ans', value: cpl.an5, mult: 54.5 },
-              ]).map(({ label, value, mult }) => (
-                <div key={label} style={{ backgroundColor: G5, borderRadius: 10, padding: '14px 14px', border: `1px solid ${G3}` }}>
-                  <div style={{ color: '#5a7a6a', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>{label}</div>
-                  <div style={{ color: ORANGE, fontSize: 22, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{fmtC(value)}</div>
-                  <div style={{ color: '#4a6a5a', fontSize: 10, marginTop: 5 }}>
-                    {fmtN(totals.totalLeads * mult)} leads cumulés
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
           {/* BLOC 6 — KEYWORD DETAIL */}
           <div style={card}>
             <div style={secTitle}>
