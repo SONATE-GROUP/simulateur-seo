@@ -530,30 +530,22 @@ export default function SimulateurSEO() {
 
       {/* ── HEADER ── */}
       <header style={{
-        backgroundColor: G2, borderBottom: `1px solid ${G3}`,
-        padding: '0 20px', height: 58, flexShrink: 0,
-        display: 'flex', alignItems: 'center', gap: 16, zIndex: 100,
+        backgroundColor: '#ffffff', borderBottom: '1px solid #e8e8e8',
+        padding: '0 24px', height: 80, flexShrink: 0,
+        display: 'flex', alignItems: 'center', gap: 20, zIndex: 100,
       }}>
-        {/* Logo — crop PNG to show only the "Sonate" wordmark (original 1762×990, text at 8–50% height) */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-          <div style={{
-            backgroundImage: 'url(/logo-sonate.png)',
-            backgroundRepeat: 'no-repeat',
-            backgroundSize: '180px auto',  /* scale: 180/1762 = 0.102 → display height 101px */
-            backgroundPosition: '-10px -8px', /* skip ~8px top padding, center on text */
-            backgroundColor: 'white',
-            borderRadius: 6,
-            width: 160,
-            height: 42,
-            flexShrink: 0,
-          }} role="img" aria-label="Sonate" />
-          <span style={{
-            fontSize: 9, fontWeight: 700, letterSpacing: '0.18em',
-            textTransform: 'uppercase', color: ORANGE,
-            border: `1px solid ${ORANGE}`, borderRadius: 3,
-            padding: '2px 5px', lineHeight: 1,
-          }}>SEO</span>
-        </div>
+        {/* Logo — background-image crop: original 1762×990, Sonate text at y≈8–50% */}
+        <div style={{
+          backgroundImage: 'url(/logo-sonate.png)',
+          backgroundRepeat: 'no-repeat',
+          backgroundSize: '270px auto',
+          backgroundPosition: '-5px -12px',
+          width: 252,
+          height: 65,
+          flexShrink: 0,
+        }} role="img" aria-label="Sonate" />
+
+        <div style={{ width: 1, height: 40, backgroundColor: '#e0e0e0', flexShrink: 0 }} />
 
         {/* Prospect fields */}
         <div style={{ display: 'flex', gap: 8, flex: 1 }}>
@@ -567,7 +559,7 @@ export default function SimulateurSEO() {
               value={value}
               placeholder={placeholder}
               onChange={e => update({ [key]: e.target.value })}
-              style={{ ...inputBase, flex: 1 }}
+              style={{ ...inputBase, flex: 1, backgroundColor: '#f5f5f5', border: '1px solid #ddd', color: '#1a3a2a' }}
             />
           ))}
         </div>
@@ -577,8 +569,8 @@ export default function SimulateurSEO() {
           <button
             onClick={genLink}
             style={{
-              backgroundColor: 'transparent', border: `1px solid ${G4}`,
-              borderRadius: 6, padding: '7px 14px', color: CREAM,
+              backgroundColor: 'transparent', border: `1px solid ${G3}`,
+              borderRadius: 6, padding: '7px 14px', color: G2,
               fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap', transition: 'border-color .15s',
             }}
           >
