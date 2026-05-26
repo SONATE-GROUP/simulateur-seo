@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Simulateur SEO',
+  title: 'SONATE SEO',
   description: 'Simulateur de potentiel SEO — projetez votre ROI organique',
 };
 

@@ -536,8 +536,8 @@ export default function SimulateurSEO() {
       }}>
         {/* Logo */}
         <div style={{ fontWeight: 800, fontSize: 17, whiteSpace: 'nowrap', color: CREAM }}>
-          <span style={{ color: ORANGE }}>SEO</span>
-          <span style={{ color: CREAM }}> Simulator</span>
+          <span style={{ color: ORANGE }}>SONATE</span>
+          <span style={{ color: CREAM }}> SEO</span>
         </div>
 
         {/* Prospect fields */}
