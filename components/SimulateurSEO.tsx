@@ -534,28 +534,24 @@ export default function SimulateurSEO() {
         padding: '0 20px', height: 58, flexShrink: 0,
         display: 'flex', alignItems: 'center', gap: 16, zIndex: 100,
       }}>
-        {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0 }}>
+        {/* Logo — crop PNG to show only the "Sonate" wordmark (original 1762×990, text at 8–50% height) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          <div style={{
+            backgroundImage: 'url(/logo-sonate.png)',
+            backgroundRepeat: 'no-repeat',
+            backgroundSize: '180px auto',  /* scale: 180/1762 = 0.102 → display height 101px */
+            backgroundPosition: '-10px -8px', /* skip ~8px top padding, center on text */
+            backgroundColor: 'white',
+            borderRadius: 6,
+            width: 160,
+            height: 42,
+            flexShrink: 0,
+          }} role="img" aria-label="Sonate" />
           <span style={{
-            fontFamily: "'Playfair Display', Georgia, serif",
-            fontWeight: 900,
-            fontSize: 26,
-            color: '#f0ebe1',
-            letterSpacing: '-0.5px',
-            lineHeight: 1,
-          }}>Sonate</span>
-          <span style={{
-            fontSize: 9,
-            fontWeight: 700,
-            letterSpacing: '0.18em',
-            textTransform: 'uppercase',
-            color: ORANGE,
-            border: `1px solid ${ORANGE}`,
-            borderRadius: 3,
-            padding: '2px 5px',
-            lineHeight: 1,
-            alignSelf: 'center',
-            marginTop: 2,
+            fontSize: 9, fontWeight: 700, letterSpacing: '0.18em',
+            textTransform: 'uppercase', color: ORANGE,
+            border: `1px solid ${ORANGE}`, borderRadius: 3,
+            padding: '2px 5px', lineHeight: 1,
           }}>SEO</span>
         </div>
 
