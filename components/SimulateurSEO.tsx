@@ -38,7 +38,7 @@ interface SimState {
   crPreAchat: number;
   crIntermediaire: number;
   crInformationnel: number;
-  costPerPage: number;
+  costPerKeyword: number;
   budgetRatio: number;
   seasonalityEnabled: boolean;
   startMonth: number;
@@ -94,7 +94,7 @@ const INITIAL: SimState = {
   crPreAchat: 5,
   crIntermediaire: 1,
   crInformationnel: 0.5,
-  costPerPage: 700,
+  costPerKeyword: 700,
   budgetRatio: 100,
   seasonalityEnabled: false,
   startMonth: 0,
@@ -346,7 +346,7 @@ export default function SimulateurSEO() {
   const {
     prospectName, siteUrl, sector, da, healthScore, basketValue, keywords,
     crTransactionnel, crPreAchat, crIntermediaire, crInformationnel,
-    costPerPage, budgetRatio,
+    costPerKeyword, budgetRatio,
     seasonalityEnabled, startMonth, highSeasonMonths, highSeasonMultiplier,
     kwMultiplier, businessType, tauxRdv, tauxClosing, categories,
   } = state;
@@ -389,15 +389,16 @@ export default function SimulateurSEO() {
     const totalImpressions = keywords.reduce((s, k) => s + k.volume, 0) * kwMultiplier;
     const topics    = new Set(keywords.map(k => k.topic).filter(Boolean));
     const nbPages   = (topics.size || keywords.length) * kwMultiplier;
-    const budgetTotal  = nbPages * costPerPage * (budgetRatio / 100);
+    const nbKeywords = keywords.length * kwMultiplier;
+    const budgetTotal  = nbKeywords * costPerKeyword * (budgetRatio / 100);
     const roi2ans      = budgetTotal > 0 ? ((totalCA * 18.5 - budgetTotal) / budgetTotal) * 100 : 0;
     const roiMult      = budgetTotal > 0 ? (totalCA * 18.5) / budgetTotal : 0;
     // Extra lead-mode values (unscaled, for funnel display)
     const baseLeads  = rawLeads;
     const baseRdv    = baseLeads * (tauxRdv / 100);
     const baseClosing = baseRdv * (tauxClosing / 100);
-    return { totalCA, totalLeads, totalTraffic, totalImpressions, nbPages, budgetTotal, roi2ans, roiMult, baseLeads, baseRdv, baseClosing };
-  }, [kwResults, keywords, costPerPage, budgetRatio, kwMultiplier, businessType, tauxRdv, tauxClosing, basketValue]);
+    return { totalCA, totalLeads, totalTraffic, totalImpressions, nbPages, nbKeywords, budgetTotal, roi2ans, roiMult, baseLeads, baseRdv, baseClosing };
+  }, [kwResults, keywords, costPerKeyword, budgetRatio, kwMultiplier, businessType, tauxRdv, tauxClosing, basketValue]);
 
   /* Monthly projection */
   const { monthlyData, breakEvenMonth } = useMemo(() => {
@@ -796,11 +797,11 @@ export default function SimulateurSEO() {
             <div style={secTitleLight}>
               <span style={{ color: ORANGE, fontSize: 10 }}>◆</span> Accompagnement SEO/GEO
             </div>
-            <Slider light label="Coût par page (création + optimisation)" value={costPerPage} min={300} max={2000} step={50} unit="€"
-              onChange={v => update({ costPerPage: v })} />
+            <Slider light label="Budget par mot clé (création contenu principal + contenu secondaire + maillage + optimisation)" value={costPerKeyword} min={300} max={2000} step={50} unit="€"
+              onChange={v => update({ costPerKeyword: v })} />
             <div style={{ backgroundColor: 'rgba(0,0,0,0.06)', borderRadius: 6, padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ color: L_MED, fontSize: 12 }}>{totals.nbPages} pages × {fmtC(costPerPage)}</span>
-              <span style={{ color: ORANGE, fontWeight: 700, fontSize: 15 }}>{fmtC(totals.budgetTotal)}</span>
+              <span style={{ color: L_MED, fontSize: 12 }}>{totals.nbKeywords} mots clés × {fmtC(costPerKeyword)}</span>
+              <span style={{ color: ORANGE, fontWeight: 700, fontSize: 15 }}>{fmtC(totals.budgetTotal / 12)}<span style={{ fontSize: 11, fontWeight: 400 }}> /mois</span></span>
             </div>
           </div>
 
@@ -977,7 +978,7 @@ export default function SimulateurSEO() {
             <KPICard label="Trafic organique / mois" value={fmtN(totals.totalTraffic)} />
             <KPICard label="Leads / mois (à 12 mois)" value={totals.totalLeads.toFixed(1)} />
             <KPICard label="Pages à créer" value={`${totals.nbPages}`} />
-            <KPICard label="Budget total" value={fmtC(totals.budgetTotal)} accent />
+            <KPICard label="Budget mensuel" value={fmtC(totals.budgetTotal / 12)} accent />
           </div>
 
           {/* BLOC 3 — FUNNEL */}
@@ -1261,9 +1262,9 @@ export default function SimulateurSEO() {
                   ['Domain Authority (DA)', `${da}`],
                   ['Score Santé Semrush', `${healthScore} → coeff. ${coeffSante}`],
                   ['Panier moyen / Lead', fmtC(basketValue)],
-                  ['Coût par page', fmtC(costPerPage)],
+                  ['Budget par mot clé', fmtC(costPerKeyword)],
                   ['Ratio budget alloué', `${budgetRatio}%`],
-                  ['Budget total', fmtC(totals.budgetTotal)],
+                  ['Budget mensuel', fmtC(totals.budgetTotal / 12)],
                   ['Nombre de pages', `${totals.nbPages}`],
                 ] as [string, string][]).map(([label, value]) => (
                   <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: `1px solid ${G3}` }}>
@@ -1309,7 +1310,7 @@ export default function SimulateurSEO() {
                       ['DA', `${da}`],
                       ['Coeff. Semrush', coeffSante],
                       ['Panier', fmtC(basketValue)],
-                      ['Budget', fmtC(totals.budgetTotal)],
+                      ['Budget/mois', fmtC(totals.budgetTotal / 12)],
                     ] as [string, string][]).map(([k, v]) => (
                       <div key={k} style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ color: '#7a9e8e', fontSize: 11 }}>{k}</span>
