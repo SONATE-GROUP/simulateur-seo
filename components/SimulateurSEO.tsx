@@ -801,7 +801,7 @@ export default function SimulateurSEO() {
             <Slider light label="Budget par mot clé (création contenu principal + contenu secondaire + maillage + optimisation)" value={costPerKeyword} min={300} max={2000} step={50} unit="€"
               onChange={v => update({ costPerKeyword: v })} />
             <div style={{ backgroundColor: 'rgba(0,0,0,0.06)', borderRadius: 6, padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ color: L_MED, fontSize: 12 }}>{totals.nbKeywords} mots clés × {fmtC(costPerKeyword)}</span>
+              <span style={{ color: L_MED, fontSize: 12 }}>{totals.nbKeywords} sujets × {fmtC(costPerKeyword)}</span>
               <span style={{ color: ORANGE, fontWeight: 700, fontSize: 15 }}>{fmtC(totals.budgetMensuel)}<span style={{ fontSize: 11, fontWeight: 400 }}> /mois</span></span>
             </div>
           </div>
