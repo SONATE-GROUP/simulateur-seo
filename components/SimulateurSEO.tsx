@@ -390,20 +390,21 @@ export default function SimulateurSEO() {
     const topics    = new Set(keywords.map(k => k.topic).filter(Boolean));
     const nbPages   = (topics.size || keywords.length) * kwMultiplier;
     const nbKeywords = keywords.length * kwMultiplier;
-    const budgetTotal  = nbKeywords * costPerKeyword * (budgetRatio / 100);
+    const budgetMensuel = nbKeywords * costPerKeyword * (budgetRatio / 100);
+    const budgetTotal  = budgetMensuel * 12;
     const roi2ans      = budgetTotal > 0 ? ((totalCA * 18.5 - budgetTotal) / budgetTotal) * 100 : 0;
     const roiMult      = budgetTotal > 0 ? (totalCA * 18.5) / budgetTotal : 0;
     // Extra lead-mode values (unscaled, for funnel display)
     const baseLeads  = rawLeads;
     const baseRdv    = baseLeads * (tauxRdv / 100);
     const baseClosing = baseRdv * (tauxClosing / 100);
-    return { totalCA, totalLeads, totalTraffic, totalImpressions, nbPages, nbKeywords, budgetTotal, roi2ans, roiMult, baseLeads, baseRdv, baseClosing };
+    return { totalCA, totalLeads, totalTraffic, totalImpressions, nbPages, nbKeywords, budgetMensuel, budgetTotal, roi2ans, roiMult, baseLeads, baseRdv, baseClosing };
   }, [kwResults, keywords, costPerKeyword, budgetRatio, kwMultiplier, businessType, tauxRdv, tauxClosing, basketValue]);
 
   /* Monthly projection */
   const { monthlyData, breakEvenMonth } = useMemo(() => {
-    const { totalCA, budgetTotal } = totals;
-    const monthlyBudget = budgetTotal / 12;
+    const { totalCA, budgetMensuel, budgetTotal } = totals;
+    const monthlyBudget = budgetMensuel;
 
     // Build seasonal weights (one per campaign month, mapped to calendar months)
     let weights: number[];
@@ -801,7 +802,7 @@ export default function SimulateurSEO() {
               onChange={v => update({ costPerKeyword: v })} />
             <div style={{ backgroundColor: 'rgba(0,0,0,0.06)', borderRadius: 6, padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ color: L_MED, fontSize: 12 }}>{totals.nbKeywords} mots clés × {fmtC(costPerKeyword)}</span>
-              <span style={{ color: ORANGE, fontWeight: 700, fontSize: 15 }}>{fmtC(totals.budgetTotal / 12)}<span style={{ fontSize: 11, fontWeight: 400 }}> /mois</span></span>
+              <span style={{ color: ORANGE, fontWeight: 700, fontSize: 15 }}>{fmtC(totals.budgetMensuel)}<span style={{ fontSize: 11, fontWeight: 400 }}> /mois</span></span>
             </div>
           </div>
 
@@ -978,7 +979,7 @@ export default function SimulateurSEO() {
             <KPICard label="Trafic organique / mois" value={fmtN(totals.totalTraffic)} />
             <KPICard label="Leads / mois (à 12 mois)" value={totals.totalLeads.toFixed(1)} />
             <KPICard label="Pages à créer" value={`${totals.nbPages}`} />
-            <KPICard label="Budget mensuel" value={fmtC(totals.budgetTotal / 12)} accent />
+            <KPICard label="Budget mensuel" value={fmtC(totals.budgetMensuel)} accent />
           </div>
 
           {/* BLOC 3 — FUNNEL */}
@@ -1264,7 +1265,7 @@ export default function SimulateurSEO() {
                   ['Panier moyen / Lead', fmtC(basketValue)],
                   ['Budget par mot clé', fmtC(costPerKeyword)],
                   ['Ratio budget alloué', `${budgetRatio}%`],
-                  ['Budget mensuel', fmtC(totals.budgetTotal / 12)],
+                  ['Budget mensuel', fmtC(totals.budgetMensuel)],
                   ['Nombre de pages', `${totals.nbPages}`],
                 ] as [string, string][]).map(([label, value]) => (
                   <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: `1px solid ${G3}` }}>
@@ -1310,7 +1311,7 @@ export default function SimulateurSEO() {
                       ['DA', `${da}`],
                       ['Coeff. Semrush', coeffSante],
                       ['Panier', fmtC(basketValue)],
-                      ['Budget/mois', fmtC(totals.budgetTotal / 12)],
+                      ['Budget/mois', fmtC(totals.budgetMensuel)],
                     ] as [string, string][]).map(([k, v]) => (
                       <div key={k} style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ color: '#7a9e8e', fontSize: 11 }}>{k}</span>
