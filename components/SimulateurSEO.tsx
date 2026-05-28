@@ -950,9 +950,9 @@ export default function SimulateurSEO() {
                     <button
                       onClick={e => { e.stopPropagation(); removeCategory(cat.id); }}
                       title="Supprimer la catégorie"
-                      style={{ background: 'none', border: 'none', color: '#b05050', cursor: 'pointer', padding: '2px 3px', lineHeight: 1, display: 'flex', alignItems: 'center' }}
+                      style={{ background: 'none', border: 'none', color: '#c05050', cursor: 'pointer', padding: '2px 4px', lineHeight: 1, display: 'flex', alignItems: 'center', flexShrink: 0 }}
                     >
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                         <polyline points="3 6 5 6 21 6" />
                         <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
                         <path d="M10 11v6M14 11v6" />
