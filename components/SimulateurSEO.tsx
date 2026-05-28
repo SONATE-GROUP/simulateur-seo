@@ -943,19 +943,6 @@ export default function SimulateurSEO() {
                       />
                       <span style={{ fontSize: 10, color: L_MED }}>mots-clés</span>
                     </div>
-                    <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
-                      <NumInput
-                        value={cat.budget ?? 700} min={100}
-                        onChange={v => updateCategoryBudget(cat.id, v)}
-                        style={{ width: 58, backgroundColor: L_INPUT, border: `1px solid ${ORANGE}44`, borderRadius: 3, color: ORANGE, fontSize: 11, fontWeight: 700, padding: '2px 4px', textAlign: 'center', outline: 'none' }}
-                      />
-                      <span style={{ fontSize: 10, color: L_MED }}>€/mois</span>
-                      {catKws.length > 0 && (
-                        <span style={{ fontSize: 9, color: L_SOFT, marginLeft: 2 }}>
-                          ({fmtC(Math.round((cat.budget ?? 700) / catKws.length))}/kw)
-                        </span>
-                      )}
-                    </div>
                     <button
                       onClick={e => { e.stopPropagation(); addKw(cat.id); if (!isOpen) toggleCat(cat.id); }}
                       style={{ background: ORANGE, border: 'none', borderRadius: 3, padding: '2px 7px', color: 'white', fontSize: 10, cursor: 'pointer', fontWeight: 700, whiteSpace: 'nowrap' }}
@@ -1067,23 +1054,21 @@ export default function SimulateurSEO() {
                 Ajoutez des catégories pour renseigner les budgets
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <>
                 {categories.map(cat => {
-                  const nb = keywords.filter(k => k.categoryId === cat.id).length;
-                  const bpk = nb > 0 ? (cat.budget ?? 700) / nb : cat.budget ?? 700;
+                  const nb  = keywords.filter(k => k.categoryId === cat.id).length;
+                  const bpk = nb > 0 ? (cat.budget ?? 700) / nb : (cat.budget ?? 700);
                   const coeff = Math.max(0.1, bpk / 700);
                   return (
-                    <div key={cat.id} style={{ backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 5, padding: '6px 10px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ color: L_DARK, fontSize: 12, fontWeight: 600, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cat.name}</span>
-                        <span style={{ color: ORANGE, fontWeight: 700, fontSize: 13, flexShrink: 0, marginLeft: 8 }}>{fmtC(cat.budget ?? 700)}<span style={{ fontSize: 10, fontWeight: 400 }}>/mois</span></span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3 }}>
-                        <span style={{ color: L_SOFT, fontSize: 10 }}>{nb} kw → {fmtC(Math.round(bpk))}/kw</span>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: coeff >= 1 ? '#2ea064' : ORANGE }}>
-                          coeff ×{coeff.toFixed(2)} {coeff >= 1 ? '↑' : '↓'}
-                        </span>
-                      </div>
+                    <div key={cat.id}>
+                      <Slider
+                        light
+                        label={cat.name}
+                        value={cat.budget ?? 700}
+                        min={300} max={5000} step={100} unit="€"
+                        hint={`${nb} kw → ${fmtC(Math.round(bpk))}/kw · coeff ×${coeff.toFixed(2)} ${coeff >= 1 ? '↑' : '↓'}`}
+                        onChange={v => updateCategoryBudget(cat.id, v)}
+                      />
                     </div>
                   );
                 })}
@@ -1091,7 +1076,7 @@ export default function SimulateurSEO() {
                   <span style={{ color: L_MED, fontSize: 12 }}>Total mensuel</span>
                   <span style={{ color: ORANGE, fontWeight: 700, fontSize: 15 }}>{fmtC(totals.budgetMensuel)}<span style={{ fontSize: 11, fontWeight: 400 }}> /mois</span></span>
                 </div>
-              </div>
+              </>
             )}
           </div>
 
