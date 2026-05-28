@@ -101,6 +101,12 @@ input[type="range"].slider-light::-moz-range-track {
   border-radius: 2px;
 }
 
+/* Placeholder text */
+input::placeholder {
+  color: #9eb0a0;
+  opacity: 0.75;
+}
+
 /* Print / PDF */
 @media print {
   body { overflow: visible; }

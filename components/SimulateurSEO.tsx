@@ -83,13 +83,13 @@ const SEASON_PRESETS = {
 };
 
 const INITIAL: SimState = {
-  prospectName: 'Nom de l\'entreprise',
-  siteUrl: 'www.exemple.com',
-  sector: 'E-commerce Jardin',
+  prospectName: '',
+  siteUrl: '',
+  sector: '',
   da: 20,
   healthScore: 60,
   basketValue: 100,
-  keywords: DEFAULT_KEYWORDS,
+  keywords: [],
   crTransactionnel: 5,
   crPreAchat: 2.5,
   crIntermediaire: 1,
@@ -104,10 +104,7 @@ const INITIAL: SimState = {
   businessType: 'ecommerce',
   tauxRdv: 60,
   tauxClosing: 30,
-  categories: [
-    { id: 'cat1', name: 'Graines & Semences' },
-    { id: 'cat2', name: 'Jardinerie' },
-  ],
+  categories: [],
 };
 
 /* ─── PALETTE ────────────────────────────────────────────────── */
