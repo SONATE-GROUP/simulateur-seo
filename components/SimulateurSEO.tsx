@@ -553,11 +553,15 @@ export default function SimulateurSEO() {
         return '';
       };
 
-      const catId   = uid();
-      const catName = file.name.replace(/\.[^.]+$/, '');
+      // Build category map: name → id (create new ids for new category names)
+      const fallbackCatName = file.name.replace(/\.[^.]+$/, '');
+      const catNameToId: Record<string, string> = {};
+
       const newKws: Keyword[] = raw.map(row => {
-        const intentRaw = normalize(col(row, 'intention', 'intent'));
+        const intentRaw    = normalize(col(row, 'intention', 'intent'));
         const proximityRaw = Number(col(row, 'proximite', 'proximity', 'prox')) || 1;
+        const catLabel     = col(row, 'categorie', 'catégorie', 'category', 'cat').trim() || fallbackCatName;
+        if (!catNameToId[catLabel]) catNameToId[catLabel] = uid();
         return {
           id:         uid(),
           keyword:    col(row, 'mot cle', 'mot-cle', 'keyword', 'kw', 'requete', 'requête'),
@@ -566,29 +570,32 @@ export default function SimulateurSEO() {
           proximity:  (Math.min(3, Math.max(1, proximityRaw)) as Proximity),
           intention:  (INTENT_MAP[intentRaw] ?? 1) as Intention,
           topic:      col(row, 'sujet', 'topic', 'theme', 'thème'),
-          categoryId: catId,
+          categoryId: catNameToId[catLabel],
         };
       }).filter(k => k.keyword);
 
       if (!newKws.length) return;
+      const newCats: Category[] = Object.entries(catNameToId).map(([name, id]) => ({ id, name }));
+      const newCatIds = new Set(newCats.map(c => c.id));
       setState(s => ({
         ...s,
-        categories: [...s.categories, { id: catId, name: catName }],
+        categories: [...s.categories, ...newCats],
         keywords:   [...s.keywords, ...newKws],
       }));
-      setOpenCats(prev => { const n = new Set(prev); n.add(catId); return n; });
+      setOpenCats(prev => { const n = new Set(prev); newCatIds.forEach(id => n.add(id)); return n; });
     };
     reader.readAsArrayBuffer(file);
   };
 
   const downloadTemplate = () => {
     const ws = XLSX.utils.aoa_to_sheet([
-      ['Mot clé', 'Volume', 'Difficulté', 'Proximité', 'Intention', 'Sujet'],
-      ['acheter graines tomates', 2400, 35, 1, 1, 'Graines tomates'],
-      ['meilleures graines potager', 1800, 42, 2, 2, 'Graines potager'],
-      ['comment semer des fleurs', 5400, 25, 3, 4, 'Guide semis'],
+      ['Catégorie', 'Mot clé', 'Volume', 'Difficulté', 'Proximité', 'Intention', 'Sujet'],
+      ['Acquisition', 'acheter graines tomates', 2400, 35, 1, 1, 'Graines tomates'],
+      ['Acquisition', 'semences bio pas cher', 3200, 38, 1, 1, 'Semences bio'],
+      ['Notoriété', 'meilleures graines potager', 1800, 42, 2, 2, 'Graines potager'],
+      ['Notoriété', 'comment semer des fleurs', 5400, 25, 3, 4, 'Guide semis'],
     ]);
-    ws['!cols'] = [{ wch: 28 }, { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 20 }];
+    ws['!cols'] = [{ wch: 18 }, { wch: 28 }, { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 20 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Mots clés');
     XLSX.writeFile(wb, 'template-mots-cles.xlsx');
