@@ -15,6 +15,7 @@ type Intention = 1 | 2 | 3 | 4;
 interface Category {
   id: string;
   name: string;
+  budget: number; // monthly budget for this category (€/month)
 }
 
 interface Keyword {
@@ -40,7 +41,6 @@ interface SimState {
   crPreAchat: number;
   crIntermediaire: number;
   crInformationnel: number;
-  costPerKeyword: number;
   budgetRatio: number;
   seasonalityEnabled: boolean;
   startMonth: number;
@@ -78,6 +78,9 @@ const DEFAULT_KEYWORDS: Keyword[] = [
 
 const MONTH_NAMES = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
 
+// Each keyword in a category adds this value to the position denominator (improves rankings)
+const CAT_KW_COEF = 0.5;
+
 const SEASON_PRESETS = {
   uniforme:  Array(12).fill(false),
   hivernal:  [true, true, true, true, false, false, false, false, false, false, false, true],  // Oct-Avr
@@ -96,7 +99,6 @@ const INITIAL: SimState = {
   crPreAchat: 2.5,
   crIntermediaire: 1,
   crInformationnel: 0.5,
-  costPerKeyword: 700,
   budgetRatio: 100,
   seasonalityEnabled: false,
   startMonth: 0,
@@ -380,7 +382,7 @@ export default function SimulateurSEO() {
   const {
     prospectName, siteUrl, sector, da, healthScore, basketValue, keywords,
     crTransactionnel, crPreAchat, crIntermediaire, crInformationnel,
-    costPerKeyword, budgetRatio,
+    budgetRatio,
     seasonalityEnabled, startMonth, highSeasonMonths, highSeasonMultiplier,
     kwMultiplier, businessType, tauxRdv, tauxClosing, categories,
   } = state;
@@ -394,13 +396,17 @@ export default function SimulateurSEO() {
     const params = new URLSearchParams(window.location.search);
     const data   = params.get('data');
     const report = params.get('report');
+    const migrate = (s: SimState): SimState => ({
+      ...s,
+      categories: (s.categories ?? []).map(c => ({ ...c, budget: c.budget ?? 700 })),
+    });
     if (data) {
-      try { setState(decodeState(data)); } catch { /* ignore */ }
+      try { setState(migrate(decodeState(data))); } catch { /* ignore */ }
     } else if (report) {
       setReportId(report);
       fetch(`/api/reports/${report}`)
         .then(r => r.json())
-        .then(({ stateB64 }) => { if (stateB64) setState(decodeState(stateB64)); })
+        .then(({ stateB64 }) => { if (stateB64) setState(migrate(decodeState(stateB64))); })
         .catch(() => { /* ignore */ });
     }
   }, []);
@@ -421,10 +427,23 @@ export default function SimulateurSEO() {
 
   /* Per-keyword results */
   const kwResults = useMemo(() => {
-    const coeffSante  = Math.max(0.01, healthScore / 80);
-    const coeffBudget = Math.max(0.1, costPerKeyword / 700); // >700€ améliore la position, <700€ la dégrade
+    const coeffSante = Math.max(0.01, healthScore / 80);
+    // Pre-compute per-category stats (budget + keyword count)
+    const catStats: Record<string, { budget: number; nbKws: number }> = {};
+    categories.forEach(cat => {
+      catStats[cat.id] = { budget: cat.budget ?? 700, nbKws: 0 };
+    });
+    keywords.forEach(kw => {
+      if (catStats[kw.categoryId]) catStats[kw.categoryId].nbKws++;
+    });
+
     return keywords.map(kw => {
-      const denom  = da * coeffSante * coeffBudget;
+      const stats       = catStats[kw.categoryId] ?? { budget: 700, nbKws: 1 };
+      const nbKws       = Math.max(1, stats.nbKws);
+      const budgetPerKw = stats.budget / nbKws;
+      const coeffBudget = Math.max(0.1, budgetPerKw / 700);
+      // More keywords in the category strengthen all positions in it
+      const denom  = da * coeffSante * coeffBudget + CAT_KW_COEF * nbKws;
       const posRaw = denom > 0 ? (kw.difficulty * kw.proximity) / denom : 100;
       const pos    = Math.min(Math.max(Math.ceil(posRaw), 1), 11);
       const baseCtr = CTR_TABLE[pos] ?? 0;
@@ -434,7 +453,7 @@ export default function SimulateurSEO() {
       const ca     = leads * basketValue;
       return { ...kw, pos, ctr, traffic, leads, ca };
     });
-  }, [keywords, da, healthScore, costPerKeyword, basketValue, crTransactionnel, crPreAchat, crIntermediaire, crInformationnel, budgetRatio]);
+  }, [keywords, categories, da, healthScore, basketValue, crTransactionnel, crPreAchat, crIntermediaire, crInformationnel, budgetRatio]);
 
   /* Totals */
   const totals = useMemo(() => {
@@ -449,7 +468,7 @@ export default function SimulateurSEO() {
     const topics    = new Set(keywords.map(k => k.topic).filter(Boolean));
     const nbPages   = (topics.size || keywords.length) * kwMultiplier;
     const nbKeywords = keywords.length * kwMultiplier;
-    const budgetMensuel = nbKeywords * costPerKeyword * (budgetRatio / 100);
+    const budgetMensuel = categories.reduce((s, c) => s + (c.budget ?? 700), 0) * (budgetRatio / 100);
     const budgetTotal  = budgetMensuel * 12;
     const roi2ans      = budgetTotal > 0 ? ((totalCA * 18.5 - budgetTotal) / budgetTotal) * 100 : 0;
     const roiMult      = budgetTotal > 0 ? (totalCA * 18.5) / budgetTotal : 0;
@@ -458,7 +477,7 @@ export default function SimulateurSEO() {
     const baseRdv    = baseLeads * (tauxRdv / 100);
     const baseClosing = baseRdv * (tauxClosing / 100);
     return { totalCA, totalLeads, totalTraffic, totalImpressions, nbPages, nbKeywords, budgetMensuel, budgetTotal, roi2ans, roiMult, baseLeads, baseRdv, baseClosing };
-  }, [kwResults, keywords, costPerKeyword, budgetRatio, kwMultiplier, businessType, tauxRdv, tauxClosing, basketValue]);
+  }, [kwResults, keywords, categories, budgetRatio, kwMultiplier, businessType, tauxRdv, tauxClosing, basketValue]);
 
   /* Monthly projection */
   const { monthlyData, breakEvenMonth } = useMemo(() => {
@@ -553,11 +572,15 @@ export default function SimulateurSEO() {
         return '';
       };
 
-      const catId   = uid();
-      const catName = file.name.replace(/\.[^.]+$/, '');
+      // Build category map: name → id (create new ids for new category names)
+      const fallbackCatName = file.name.replace(/\.[^.]+$/, '');
+      const catNameToId: Record<string, string> = {};
+
       const newKws: Keyword[] = raw.map(row => {
-        const intentRaw = normalize(col(row, 'intention', 'intent'));
+        const intentRaw    = normalize(col(row, 'intention', 'intent'));
         const proximityRaw = Number(col(row, 'proximite', 'proximity', 'prox')) || 1;
+        const catLabel     = col(row, 'categorie', 'catégorie', 'category', 'cat').trim() || fallbackCatName;
+        if (!catNameToId[catLabel]) catNameToId[catLabel] = uid();
         return {
           id:         uid(),
           keyword:    col(row, 'mot cle', 'mot-cle', 'keyword', 'kw', 'requete', 'requête'),
@@ -566,29 +589,35 @@ export default function SimulateurSEO() {
           proximity:  (Math.min(3, Math.max(1, proximityRaw)) as Proximity),
           intention:  (INTENT_MAP[intentRaw] ?? 1) as Intention,
           topic:      col(row, 'sujet', 'topic', 'theme', 'thème'),
-          categoryId: catId,
+          categoryId: catNameToId[catLabel],
         };
       }).filter(k => k.keyword);
 
       if (!newKws.length) return;
+      const newCats: Category[] = Object.entries(catNameToId).map(([name, id]) => {
+        const nbInCat = newKws.filter(k => k.categoryId === id).length;
+        return { id, name, budget: Math.max(700, nbInCat * 700) };
+      });
+      const newCatIds = new Set(newCats.map(c => c.id));
       setState(s => ({
         ...s,
-        categories: [...s.categories, { id: catId, name: catName }],
+        categories: [...s.categories, ...newCats],
         keywords:   [...s.keywords, ...newKws],
       }));
-      setOpenCats(prev => { const n = new Set(prev); n.add(catId); return n; });
+      setOpenCats(prev => { const n = new Set(prev); newCatIds.forEach(id => n.add(id)); return n; });
     };
     reader.readAsArrayBuffer(file);
   };
 
   const downloadTemplate = () => {
     const ws = XLSX.utils.aoa_to_sheet([
-      ['Mot clé', 'Volume', 'Difficulté', 'Proximité', 'Intention', 'Sujet'],
-      ['acheter graines tomates', 2400, 35, 1, 1, 'Graines tomates'],
-      ['meilleures graines potager', 1800, 42, 2, 2, 'Graines potager'],
-      ['comment semer des fleurs', 5400, 25, 3, 4, 'Guide semis'],
+      ['Catégorie', 'Mot clé', 'Volume', 'Difficulté', 'Proximité', 'Intention', 'Sujet'],
+      ['Acquisition', 'acheter graines tomates', 2400, 35, 1, 1, 'Graines tomates'],
+      ['Acquisition', 'semences bio pas cher', 3200, 38, 1, 1, 'Semences bio'],
+      ['Notoriété', 'meilleures graines potager', 1800, 42, 2, 2, 'Graines potager'],
+      ['Notoriété', 'comment semer des fleurs', 5400, 25, 3, 4, 'Guide semis'],
     ]);
-    ws['!cols'] = [{ wch: 28 }, { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 20 }];
+    ws['!cols'] = [{ wch: 18 }, { wch: 28 }, { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 20 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Mots clés');
     XLSX.writeFile(wb, 'template-mots-cles.xlsx');
@@ -596,9 +625,12 @@ export default function SimulateurSEO() {
 
   const addCategory = () => {
     const id = uid();
-    setState(s => ({ ...s, categories: [...s.categories, { id, name: 'Nouvelle catégorie' }] }));
+    setState(s => ({ ...s, categories: [...s.categories, { id, name: 'Nouvelle catégorie', budget: 2100 }] }));
     setOpenCats(prev => { const n = new Set(prev); n.add(id); return n; });
   };
+
+  const updateCategoryBudget = (catId: string, budget: number) =>
+    setState(s => ({ ...s, categories: s.categories.map(c => c.id === catId ? { ...c, budget } : c) }));
 
   const removeCategory = (catId: string) => setState(s => {
     const fallback = s.categories.find(c => c.id !== catId)?.id ?? null;
@@ -911,6 +943,19 @@ export default function SimulateurSEO() {
                       />
                       <span style={{ fontSize: 10, color: L_MED }}>mots-clés</span>
                     </div>
+                    <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
+                      <NumInput
+                        value={cat.budget ?? 700} min={100}
+                        onChange={v => updateCategoryBudget(cat.id, v)}
+                        style={{ width: 58, backgroundColor: L_INPUT, border: `1px solid ${ORANGE}44`, borderRadius: 3, color: ORANGE, fontSize: 11, fontWeight: 700, padding: '2px 4px', textAlign: 'center', outline: 'none' }}
+                      />
+                      <span style={{ fontSize: 10, color: L_MED }}>€/mois</span>
+                      {catKws.length > 0 && (
+                        <span style={{ fontSize: 9, color: L_SOFT, marginLeft: 2 }}>
+                          ({fmtC(Math.round((cat.budget ?? 700) / catKws.length))}/kw)
+                        </span>
+                      )}
+                    </div>
                     <button
                       onClick={e => { e.stopPropagation(); addKw(cat.id); if (!isOpen) toggleCat(cat.id); }}
                       style={{ background: ORANGE, border: 'none', borderRadius: 3, padding: '2px 7px', color: 'white', fontSize: 10, cursor: 'pointer', fontWeight: 700, whiteSpace: 'nowrap' }}
@@ -1017,21 +1062,37 @@ export default function SimulateurSEO() {
             <div style={secTitleLight}>
               <span style={{ color: ORANGE, fontSize: 10 }}>◆</span> Accompagnement SEO/GEO
             </div>
-            <Slider light label="Budget par mot clé (création contenu principal + contenu secondaire + maillage + optimisation)" value={costPerKeyword} min={300} max={2000} step={50} unit="€"
-              onChange={v => update({ costPerKeyword: v })} />
-            <div style={{ backgroundColor: 'rgba(0,0,0,0.06)', borderRadius: 6, padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ color: L_MED, fontSize: 12 }}>{totals.nbKeywords} sujets × {fmtC(costPerKeyword)}</span>
-              <span style={{ color: ORANGE, fontWeight: 700, fontSize: 15 }}>{fmtC(totals.budgetMensuel)}<span style={{ fontSize: 11, fontWeight: 400 }}> /mois</span></span>
-            </div>
-            <div style={{ marginTop: 8, padding: '6px 10px', backgroundColor: (() => { const c = costPerKeyword / 700; return c >= 1 ? 'rgba(46,160,100,0.12)' : 'rgba(232,87,26,0.10)'; })(), borderRadius: 5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ color: L_MED, fontSize: 11 }}>Coefficient positionnement</span>
-              <span style={{ fontWeight: 700, fontSize: 12, color: (() => { const c = costPerKeyword / 700; return c >= 1 ? '#2ea064' : ORANGE; })() }}>
-                ×{(costPerKeyword / 700).toFixed(2)}
-                <span style={{ fontWeight: 400, fontSize: 10, marginLeft: 4 }}>
-                  {costPerKeyword < 700 ? '↓ positions dégradées' : costPerKeyword === 700 ? '— baseline' : '↑ positions améliorées'}
-                </span>
-              </span>
-            </div>
+            {categories.length === 0 ? (
+              <div style={{ color: L_SOFT, fontSize: 12, textAlign: 'center', padding: '8px 0' }}>
+                Ajoutez des catégories pour renseigner les budgets
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {categories.map(cat => {
+                  const nb = keywords.filter(k => k.categoryId === cat.id).length;
+                  const bpk = nb > 0 ? (cat.budget ?? 700) / nb : cat.budget ?? 700;
+                  const coeff = Math.max(0.1, bpk / 700);
+                  return (
+                    <div key={cat.id} style={{ backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 5, padding: '6px 10px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ color: L_DARK, fontSize: 12, fontWeight: 600, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cat.name}</span>
+                        <span style={{ color: ORANGE, fontWeight: 700, fontSize: 13, flexShrink: 0, marginLeft: 8 }}>{fmtC(cat.budget ?? 700)}<span style={{ fontSize: 10, fontWeight: 400 }}>/mois</span></span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3 }}>
+                        <span style={{ color: L_SOFT, fontSize: 10 }}>{nb} kw → {fmtC(Math.round(bpk))}/kw</span>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: coeff >= 1 ? '#2ea064' : ORANGE }}>
+                          coeff ×{coeff.toFixed(2)} {coeff >= 1 ? '↑' : '↓'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+                <div style={{ borderTop: `1px solid ${L_BORD}`, marginTop: 4, paddingTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ color: L_MED, fontSize: 12 }}>Total mensuel</span>
+                  <span style={{ color: ORANGE, fontWeight: 700, fontSize: 15 }}>{fmtC(totals.budgetMensuel)}<span style={{ fontSize: 11, fontWeight: 400 }}> /mois</span></span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* SAISONNALITÉ */}
@@ -1502,9 +1563,9 @@ export default function SimulateurSEO() {
                   ['Domain Authority (DA)', `${da}`],
                   ['Score Santé Semrush', `${healthScore} → coeff. ${coeffSante}`],
                   ['Panier moyen / Lead', fmtC(basketValue)],
-                  ['Budget par mot clé', fmtC(costPerKeyword)],
                   ['Ratio budget alloué', `${budgetRatio}%`],
-                  ['Budget mensuel', fmtC(totals.budgetMensuel)],
+                  ['Budget mensuel total', fmtC(totals.budgetMensuel)],
+                  ...categories.map(c => [`Budget ${c.name}`, fmtC(c.budget ?? 700)] as [string, string]),
                   ['Nombre de pages', `${totals.nbPages}`],
                 ] as [string, string][]).map(([label, value]) => (
                   <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: `1px solid ${G3}` }}>
