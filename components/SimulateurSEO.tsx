@@ -477,11 +477,13 @@ export default function SimulateurSEO() {
   };
 
   const removeCategory = (catId: string) => setState(s => {
-    const fallback = s.categories.find(c => c.id !== catId)?.id ?? '';
+    const fallback = s.categories.find(c => c.id !== catId)?.id ?? null;
     return {
       ...s,
       categories: s.categories.filter(c => c.id !== catId),
-      keywords: s.keywords.map(k => k.categoryId === catId ? { ...k, categoryId: fallback } : k),
+      keywords: fallback
+        ? s.keywords.map(k => k.categoryId === catId ? { ...k, categoryId: fallback } : k)
+        : s.keywords.filter(k => k.categoryId !== catId),
     };
   });
 
@@ -730,12 +732,10 @@ export default function SimulateurSEO() {
                       onClick={e => { e.stopPropagation(); addKw(cat.id); if (!isOpen) toggleCat(cat.id); }}
                       style={{ background: ORANGE, border: 'none', borderRadius: 3, padding: '2px 7px', color: 'white', fontSize: 10, cursor: 'pointer', fontWeight: 700, whiteSpace: 'nowrap' }}
                     >+ Ajouter</button>
-                    {categories.length > 1 && (
-                      <button
-                        onClick={e => { e.stopPropagation(); removeCategory(cat.id); }}
-                        style={{ background: 'none', border: 'none', color: '#c05050', cursor: 'pointer', fontSize: 15, lineHeight: 1, padding: '0 2px' }}
-                      >×</button>
-                    )}
+                    <button
+                      onClick={e => { e.stopPropagation(); removeCategory(cat.id); }}
+                      style={{ background: 'none', border: 'none', color: '#c05050', cursor: 'pointer', fontSize: 15, lineHeight: 1, padding: '0 2px' }}
+                    >×</button>
                   </div>
 
                   {/* Keywords table */}
