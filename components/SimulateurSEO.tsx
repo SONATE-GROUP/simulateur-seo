@@ -331,7 +331,8 @@ const RAMP_UP_DATA = [
 
 export default function SimulateurSEO() {
   const [state, setState] = useState<SimState>(INITIAL);
-  const [linkCopied, setLinkCopied] = useState(false);
+  const [linkCopied, setLinkCopied]   = useState(false);
+  const [reportId, setReportId]       = useState<string | null>(null);
   const [openCats, setOpenCats] = useState<Set<string>>(new Set(['cat1', 'cat2']));
   const resultsRef  = useRef<HTMLDivElement>(null);
   const xlsxInputRef = useRef<HTMLInputElement>(null);
@@ -362,6 +363,7 @@ export default function SimulateurSEO() {
     if (data) {
       try { setState(decodeState(data)); } catch { /* ignore */ }
     } else if (report) {
+      setReportId(report);
       fetch(`/api/reports/${report}`)
         .then(r => r.json())
         .then(({ stateB64 }) => { if (stateB64) setState(decodeState(stateB64)); })
@@ -573,27 +575,32 @@ export default function SimulateurSEO() {
 
   const genLink = async () => {
     const stateB64 = encodeState(state);
-    const url = `${location.origin}${location.pathname}?data=${stateB64}`;
-    navigator.clipboard.writeText(url);
     setLinkCopied(true);
     setTimeout(() => setLinkCopied(false), 2500);
 
-    // Save to Turso
-    const id = uid();
     try {
-      await fetch('/api/reports', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id,
-          prospect: state.prospectName,
-          siteUrl:  state.siteUrl,
-          sector:   state.sector,
-          stateB64,
-        }),
-      });
+      if (reportId) {
+        // Update existing report
+        await fetch(`/api/reports/${reportId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prospect: state.prospectName, siteUrl: state.siteUrl, sector: state.sector, stateB64 }),
+        });
+        navigator.clipboard.writeText(`${location.origin}${location.pathname}?report=${reportId}`);
+      } else {
+        // Create new report
+        const id = uid();
+        await fetch('/api/reports', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, prospect: state.prospectName, siteUrl: state.siteUrl, sector: state.sector, stateB64 }),
+        });
+        setReportId(id);
+        navigator.clipboard.writeText(`${location.origin}${location.pathname}?report=${id}`);
+      }
     } catch (err) {
       console.warn('[genLink] Sauvegarde DB échouée', err);
+      navigator.clipboard.writeText(`${location.origin}${location.pathname}?data=${stateB64}`);
     }
   };
 
@@ -697,7 +704,7 @@ export default function SimulateurSEO() {
               fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap', transition: 'border-color .15s',
             }}
           >
-            {linkCopied ? '✓ Copié !' : '🔗 Générer lien'}
+            {linkCopied ? '✓ Enregistré !' : reportId ? '💾 Sauvegarder' : '🔗 Générer lien'}
           </button>
           <a
             href="/rapports"

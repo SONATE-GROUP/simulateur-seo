@@ -24,3 +24,29 @@ export async function GET(
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }
+
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    await initDb();
+    const { prospect, siteUrl, sector, stateB64 } = await req.json();
+
+    if (!stateB64) {
+      return NextResponse.json({ error: 'stateB64 requis' }, { status: 400 });
+    }
+
+    await db.execute({
+      sql: `UPDATE reports
+            SET prospect = ?, site_url = ?, sector = ?, state_b64 = ?, created_at = ?
+            WHERE id = ?`,
+      args: [prospect ?? '', siteUrl ?? '', sector ?? '', stateB64, new Date().toISOString(), params.id],
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error('[reports/[id] PUT]', err);
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+  }
+}
