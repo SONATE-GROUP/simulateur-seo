@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useRef, useEffect, CSSProperties } from 'react';
+import { useSession } from 'next-auth/react';
 import * as XLSX from 'xlsx';
 import {
   ComposedChart, BarChart, Bar, Line, Cell, XAxis, YAxis, CartesianGrid,
@@ -360,10 +361,13 @@ function NumInput({ value, min = 0, max, onChange, style }: {
 }
 
 export default function SimulateurSEO() {
+  const { data: session } = useSession();
   const [state, setState] = useState<SimState>(INITIAL);
   const [linkCopied, setLinkCopied]   = useState(false);
   const [reportId, setReportId]       = useState<string | null>(null);
   const [openCats, setOpenCats] = useState<Set<string>>(new Set(['cat1', 'cat2']));
+  const [workspaces, setWorkspaces]   = useState<{ id: string; name: string }[]>([]);
+  const [workspaceId, setWorkspaceId] = useState<string>('');
   const resultsRef  = useRef<HTMLDivElement>(null);
   const xlsxInputRef = useRef<HTMLInputElement>(null);
 
@@ -400,6 +404,20 @@ export default function SimulateurSEO() {
         .catch(() => { /* ignore */ });
     }
   }, []);
+
+  /* Load workspaces for the current user */
+  useEffect(() => {
+    if (!session) return;
+    fetch('/api/workspaces')
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setWorkspaces(data);
+          if (data.length > 0 && !workspaceId) setWorkspaceId(data[0].id);
+        }
+      })
+      .catch(() => { /* ignore */ });
+  }, [session]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* Per-keyword results */
   const kwResults = useMemo(() => {
@@ -620,7 +638,7 @@ export default function SimulateurSEO() {
         await fetch('/api/reports', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id, prospect: state.prospectName, siteUrl: state.siteUrl, sector: state.sector, stateB64 }),
+          body: JSON.stringify({ id, prospect: state.prospectName, siteUrl: state.siteUrl, sector: state.sector, stateB64, workspaceId: workspaceId || null }),
         });
         setReportId(id);
         navigator.clipboard.writeText(`${location.origin}${location.pathname}?report=${id}`);
@@ -740,6 +758,23 @@ export default function SimulateurSEO() {
           ))}
         </div>
 
+        {/* Workspace selector */}
+        {workspaces.length > 0 && (
+          <select
+            value={workspaceId}
+            onChange={e => setWorkspaceId(e.target.value)}
+            style={{
+              backgroundColor: '#f5f5f5', border: '1px solid #ddd',
+              borderRadius: 6, padding: '7px 11px', color: '#1a3a2a',
+              fontSize: 13, outline: 'none', flexShrink: 0, maxWidth: 180,
+            }}
+          >
+            {workspaces.map(ws => (
+              <option key={ws.id} value={ws.id}>{ws.name}</option>
+            ))}
+          </select>
+        )}
+
         {/* Actions */}
         <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
           <button
@@ -773,6 +808,18 @@ export default function SimulateurSEO() {
           >
             ↓ Exporter PDF
           </button>
+          <a
+            href="/workspaces"
+            style={{
+              backgroundColor: 'transparent', border: `1px solid ${G3}`,
+              borderRadius: 6, padding: '7px 12px', color: G2,
+              fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap',
+              textDecoration: 'none', display: 'flex', alignItems: 'center',
+            }}
+            title="Espaces de travail"
+          >
+            👥
+          </a>
         </div>
       </header>
 
