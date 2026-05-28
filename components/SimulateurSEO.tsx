@@ -444,7 +444,7 @@ export default function SimulateurSEO() {
       const coeffBudget = Math.max(0.1, budgetPerKw / 700);
       // More keywords in the category strengthen all positions in it
       const denom  = da * coeffSante * coeffBudget + CAT_KW_COEF * nbKws;
-      const posRaw = denom > 0 ? (kw.difficulty * kw.proximity) / denom : 100;
+      const posRaw = denom > 0 ? (kw.difficulty * kw.difficulty / 10 * kw.proximity) / denom : 100;
       const pos    = Math.min(Math.max(Math.ceil(posRaw), 1), 11);
       const baseCtr = CTR_TABLE[pos] ?? 0;
       const ctr    = baseCtr * (budgetRatio / 100);
