@@ -402,18 +402,21 @@ export default function SimulateurSEO() {
   }, []);
 
   /* Per-keyword results */
-  const kwResults = useMemo(() => keywords.map(kw => {
-    const coeffSante = Math.max(0.01, healthScore / 80);
-    const denom = da * coeffSante;
-    const posRaw = denom > 0 ? (kw.difficulty * kw.proximity) / denom : 100;
-    const pos = Math.min(Math.max(Math.ceil(posRaw), 1), 11);
-    const baseCtr = CTR_TABLE[pos] ?? 0;
-    const ctr = baseCtr * (budgetRatio / 100);
-    const traffic = kw.volume * ctr;
-    const leads = traffic * (cr[kw.intention as Intention] / 100);
-    const ca = leads * basketValue;
-    return { ...kw, pos, ctr, traffic, leads, ca };
-  }), [keywords, da, healthScore, basketValue, crTransactionnel, crPreAchat, crIntermediaire, crInformationnel, budgetRatio]);
+  const kwResults = useMemo(() => {
+    const coeffSante  = Math.max(0.01, healthScore / 80);
+    const coeffBudget = Math.max(0.1, costPerKeyword / 700); // >700€ améliore la position, <700€ la dégrade
+    return keywords.map(kw => {
+      const denom  = da * coeffSante * coeffBudget;
+      const posRaw = denom > 0 ? (kw.difficulty * kw.proximity) / denom : 100;
+      const pos    = Math.min(Math.max(Math.ceil(posRaw), 1), 11);
+      const baseCtr = CTR_TABLE[pos] ?? 0;
+      const ctr    = baseCtr * (budgetRatio / 100);
+      const traffic = kw.volume * ctr;
+      const leads  = traffic * (cr[kw.intention as Intention] / 100);
+      const ca     = leads * basketValue;
+      return { ...kw, pos, ctr, traffic, leads, ca };
+    });
+  }, [keywords, da, healthScore, costPerKeyword, basketValue, crTransactionnel, crPreAchat, crIntermediaire, crInformationnel, budgetRatio]);
 
   /* Totals */
   const totals = useMemo(() => {
@@ -972,6 +975,15 @@ export default function SimulateurSEO() {
             <div style={{ backgroundColor: 'rgba(0,0,0,0.06)', borderRadius: 6, padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ color: L_MED, fontSize: 12 }}>{totals.nbKeywords} sujets × {fmtC(costPerKeyword)}</span>
               <span style={{ color: ORANGE, fontWeight: 700, fontSize: 15 }}>{fmtC(totals.budgetMensuel)}<span style={{ fontSize: 11, fontWeight: 400 }}> /mois</span></span>
+            </div>
+            <div style={{ marginTop: 8, padding: '6px 10px', backgroundColor: (() => { const c = costPerKeyword / 700; return c >= 1 ? 'rgba(46,160,100,0.12)' : 'rgba(232,87,26,0.10)'; })(), borderRadius: 5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ color: L_MED, fontSize: 11 }}>Coefficient positionnement</span>
+              <span style={{ fontWeight: 700, fontSize: 12, color: (() => { const c = costPerKeyword / 700; return c >= 1 ? '#2ea064' : ORANGE; })() }}>
+                ×{(costPerKeyword / 700).toFixed(2)}
+                <span style={{ fontWeight: 400, fontSize: 10, marginLeft: 4 }}>
+                  {costPerKeyword < 700 ? '↓ positions dégradées' : costPerKeyword === 700 ? '— baseline' : '↑ positions améliorées'}
+                </span>
+              </span>
             </div>
           </div>
 
