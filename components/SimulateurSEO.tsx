@@ -329,6 +329,36 @@ const RAMP_UP_DATA = [
   { mois: 'M12', pct: 92 },
 ];
 
+/* ─── NUM INPUT ──────────────────────────────────────────────── */
+function NumInput({ value, min = 0, max, onChange, style }: {
+  value: number; min?: number; max?: number;
+  onChange: (v: number) => void; style?: CSSProperties;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const display = draft !== null ? draft : String(value);
+
+  const commit = () => {
+    if (draft === null) return;
+    const num = parseInt(draft, 10);
+    const safe = isNaN(num) ? min : num;
+    const clamped = Math.max(min, max !== undefined ? Math.min(max, safe) : safe);
+    setDraft(null);
+    onChange(clamped);
+  };
+
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      value={display}
+      onChange={e => setDraft(e.target.value.replace(/[^0-9]/g, ''))}
+      onBlur={commit}
+      onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+      style={style}
+    />
+  );
+}
+
 export default function SimulateurSEO() {
   const [state, setState] = useState<SimState>(INITIAL);
   const [linkCopied, setLinkCopied]   = useState(false);
@@ -775,9 +805,9 @@ export default function SimulateurSEO() {
                 Panier moyen / Valeur d'un lead
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <input
-                  type="number" value={basketValue} min={1}
-                  onChange={e => update({ basketValue: Math.max(1, Number(e.target.value)) })}
+                <NumInput
+                  value={basketValue} min={1}
+                  onChange={v => update({ basketValue: v })}
                   style={{ ...inputLight, fontWeight: 700, fontSize: 16, textAlign: 'center' }}
                 />
                 <span style={{ color: ORANGE, fontWeight: 700, fontSize: 16 }}>€</span>
@@ -821,12 +851,9 @@ export default function SimulateurSEO() {
                       style={{ flex: 1, border: 'none', background: 'transparent', color: L_DARK, fontWeight: 700, fontSize: 12, outline: 'none', cursor: 'text' }}
                     />
                     <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-                      <input
-                        type="number"
-                        value={catKws.length}
-                        min={0}
-                        onChange={e => {
-                          const target = Math.max(0, Number(e.target.value));
+                      <NumInput
+                        value={catKws.length} min={0}
+                        onChange={target => {
                           const diff = target - catKws.length;
                           if (diff > 0) {
                             const newKws = Array.from({ length: diff }, () => ({ id: uid(), keyword: '', volume: 1000, difficulty: 30, proximity: 1 as Proximity, intention: 1 as Intention, topic: '', categoryId: cat.id }));
@@ -878,11 +905,13 @@ export default function SimulateurSEO() {
                                     style={{ backgroundColor: 'transparent', border: 'none', color: L_DARK, fontSize: 11, outline: 'none', width: '100%', minWidth: 100 }} />
                                 </td>
                                 <td style={{ padding: '4px 2px' }}>
-                                  <input type="number" value={kw.volume} onChange={e => updateKw(kw.id, 'volume', Math.max(0, Number(e.target.value)))}
+                                  <NumInput value={kw.volume} min={0}
+                                    onChange={v => updateKw(kw.id, 'volume', v)}
                                     style={{ width: 52, backgroundColor: L_INPUT, border: `1px solid ${L_BORD}`, borderRadius: 3, color: L_DARK, fontSize: 11, padding: '2px 4px', textAlign: 'center', outline: 'none' }} />
                                 </td>
                                 <td style={{ padding: '4px 2px' }}>
-                                  <input type="number" value={kw.difficulty} min={0} max={100} onChange={e => updateKw(kw.id, 'difficulty', Math.min(100, Math.max(0, Number(e.target.value))))}
+                                  <NumInput value={kw.difficulty} min={0} max={100}
+                                    onChange={v => updateKw(kw.id, 'difficulty', v)}
                                     style={{ width: 36, backgroundColor: L_INPUT, border: `1px solid ${L_BORD}`, borderRadius: 3, color: L_DARK, fontSize: 11, padding: '2px 4px', textAlign: 'center', outline: 'none' }} />
                                 </td>
                                 <td style={{ padding: '4px 2px' }}>
