@@ -354,10 +354,17 @@ export default function SimulateurSEO() {
 
   /* Load from URL */
   useEffect(() => {
-    try {
-      const data = new URLSearchParams(window.location.search).get('data');
-      if (data) setState(decodeState(data));
-    } catch { /* ignore */ }
+    const params = new URLSearchParams(window.location.search);
+    const data   = params.get('data');
+    const report = params.get('report');
+    if (data) {
+      try { setState(decodeState(data)); } catch { /* ignore */ }
+    } else if (report) {
+      fetch(`/api/reports/${report}`)
+        .then(r => r.json())
+        .then(({ stateB64 }) => { if (stateB64) setState(decodeState(stateB64)); })
+        .catch(() => { /* ignore */ });
+    }
   }, []);
 
   /* Per-keyword results */
@@ -485,11 +492,30 @@ export default function SimulateurSEO() {
   const updateKw = (id: string, field: keyof Keyword, value: unknown) =>
     setState(s => ({ ...s, keywords: s.keywords.map(k => k.id === id ? { ...k, [field]: value } : k) }));
 
-  const genLink = () => {
-    const url = `${location.origin}${location.pathname}?data=${encodeState(state)}`;
+  const genLink = async () => {
+    const stateB64 = encodeState(state);
+    const url = `${location.origin}${location.pathname}?data=${stateB64}`;
     navigator.clipboard.writeText(url);
     setLinkCopied(true);
     setTimeout(() => setLinkCopied(false), 2500);
+
+    // Save to Turso
+    const id = uid();
+    try {
+      await fetch('/api/reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id,
+          prospect: state.prospectName,
+          siteUrl:  state.siteUrl,
+          sector:   state.sector,
+          stateB64,
+        }),
+      });
+    } catch (err) {
+      console.warn('[genLink] Sauvegarde DB échouée', err);
+    }
   };
 
   const exportPDF = async () => {
@@ -594,6 +620,17 @@ export default function SimulateurSEO() {
           >
             {linkCopied ? '✓ Copié !' : '🔗 Générer lien'}
           </button>
+          <a
+            href="/rapports"
+            style={{
+              backgroundColor: 'transparent', border: `1px solid ${G3}`,
+              borderRadius: 6, padding: '7px 14px', color: G2,
+              fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap',
+              textDecoration: 'none', display: 'flex', alignItems: 'center',
+            }}
+          >
+            📋 Rapports
+          </a>
           <button
             onClick={exportPDF}
             style={{
