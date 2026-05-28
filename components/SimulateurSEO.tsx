@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useRef, useEffect, CSSProperties } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import * as XLSX from 'xlsx';
 import {
   ComposedChart, BarChart, Bar, Line, Cell, XAxis, YAxis, CartesianGrid,
@@ -852,6 +852,23 @@ export default function SimulateurSEO() {
           >
             👥
           </a>
+          <button
+            onClick={() => signOut({ callbackUrl: '/login' })}
+            title={session?.user?.name || session?.user?.email || 'Se déconnecter'}
+            style={{
+              backgroundColor: 'transparent', border: `1px solid ${G3}`,
+              borderRadius: 6, padding: '7px 12px', color: '#8a9e98',
+              fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap',
+              display: 'flex', alignItems: 'center', gap: 5,
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+            <span style={{ fontSize: 11 }}>{session?.user?.name?.split(' ')[0] || session?.user?.email?.split('@')[0]}</span>
+          </button>
         </div>
       </header>
 
