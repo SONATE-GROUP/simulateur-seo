@@ -440,8 +440,8 @@ export default function SimulateurSEO() {
       const nbKws       = Math.max(1, stats.nbKws);
       const budgetPerKw = stats.budget / nbKws;
       const logBudget   = Math.log(1 + Math.max(0, budgetPerKw) / 20);
-      const denom       = da * (coeffSante / 70) * Math.sqrt(nbKws) * logBudget;
-      const posRaw      = denom > 0 ? (Math.pow(kw.difficulty, 1.7) * kw.proximity) / denom : 100;
+      const denom       = 225 * da * (coeffSante / 70) * Math.sqrt(nbKws) * logBudget;
+      const posRaw      = denom > 0 ? (Math.pow(kw.difficulty, 1.9) * kw.proximity ** 2) / denom : 100;
       const pos    = Math.min(Math.max(Math.round(posRaw), 1), 11);
       const baseCtr = CTR_TABLE[pos] ?? 0;
       const ctr    = baseCtr * (budgetRatio / 100);
