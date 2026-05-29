@@ -55,8 +55,8 @@ interface SimState {
 
 /* ─── CONSTANTS ──────────────────────────────────────────────── */
 const CTR_TABLE: Record<number, number> = {
-  1: 0.158, 2: 0.110, 3: 0.084, 4: 0.063, 5: 0.049,
-  6: 0.040, 7: 0.033, 8: 0.027, 9: 0.024, 10: 0.020, 11: 0,
+  1: 0.296, 2: 0.168, 3: 0.120, 4: 0.094, 5: 0.073,
+  6: 0.059, 7: 0.049, 8: 0.043, 9: 0.037, 10: 0.034, 11: 0,
 };
 
 const INTENT_LABEL: Record<number, string> = {
@@ -439,9 +439,9 @@ export default function SimulateurSEO() {
       const stats       = catStats[kw.categoryId] ?? { budget: 700, nbKws: 1 };
       const nbKws       = Math.max(1, stats.nbKws);
       const budgetPerKw = stats.budget / nbKws;
-      const logBudget   = Math.log(1 + Math.max(0, budgetPerKw));
-      const denom       = da * coeffSante * nbKws * logBudget;
-      const posRaw      = denom > 0 ? (kw.difficulty * kw.difficulty / 10 * kw.proximity) / denom : 100;
+      const logBudget   = Math.log(1 + Math.max(0, budgetPerKw) / 20);
+      const denom       = da * (coeffSante / 70) * Math.sqrt(nbKws) * logBudget;
+      const posRaw      = denom > 0 ? (Math.pow(kw.difficulty, 1.7) * kw.proximity) / denom : 100;
       const pos    = Math.min(Math.max(Math.ceil(posRaw), 1), 11);
       const baseCtr = CTR_TABLE[pos] ?? 0;
       const ctr    = baseCtr * (budgetRatio / 100);
