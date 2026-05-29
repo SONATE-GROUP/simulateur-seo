@@ -78,8 +78,6 @@ const DEFAULT_KEYWORDS: Keyword[] = [
 
 const MONTH_NAMES = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
 
-// Each keyword in a category adds this value to the position denominator (improves rankings)
-const CAT_KW_COEF = 0.5;
 
 const SEASON_PRESETS = {
   uniforme:  Array(12).fill(false),
@@ -441,10 +439,10 @@ export default function SimulateurSEO() {
       const stats       = catStats[kw.categoryId] ?? { budget: 700, nbKws: 1 };
       const nbKws       = Math.max(1, stats.nbKws);
       const budgetPerKw = stats.budget / nbKws;
-      const coeffBudget = (budgetPerKw / 500) ** 2;
-      // More keywords in the category strengthen all positions in it
-      const denom  = da * coeffSante * coeffBudget + CAT_KW_COEF * nbKws;
-      const posRaw = denom > 0 ? (kw.difficulty * kw.difficulty / 10 * kw.proximity) / denom : 100;
+      const logNbKws    = Math.log(1 + nbKws);
+      const sqrtBudget  = Math.sqrt(Math.max(0.01, budgetPerKw));
+      const denom       = da * coeffSante * (logNbKws / sqrtBudget);
+      const posRaw      = denom > 0 ? (kw.difficulty * kw.difficulty / 10 * kw.proximity) / denom : 100;
       const pos    = Math.min(Math.max(Math.ceil(posRaw), 1), 11);
       const baseCtr = CTR_TABLE[pos] ?? 0;
       const ctr    = baseCtr * (budgetRatio / 100);
