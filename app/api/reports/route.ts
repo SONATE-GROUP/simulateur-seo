@@ -53,11 +53,12 @@ export async function GET() {
         sql: `SELECT r.id, r.prospect, r.site_url, r.sector, r.created_at, r.workspace_id, w.name as workspace_name
               FROM reports r
               LEFT JOIN workspaces w ON w.id = r.workspace_id
-              WHERE r.workspace_id IN (
-                SELECT workspace_id FROM workspace_members WHERE user_id = ?
-              )
+              WHERE r.created_by = ?
+                 OR r.workspace_id IN (
+                   SELECT workspace_id FROM workspace_members WHERE user_id = ?
+                 )
               ORDER BY r.created_at DESC`,
-        args: [session.user.id],
+        args: [session.user.id, session.user.id],
       });
       rows = result.rows;
     }
