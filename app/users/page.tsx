@@ -64,6 +64,15 @@ export default function UsersPage() {
     setCreating(false);
   };
 
+  const toggleAdmin = async (userId: string, current: boolean) => {
+    const res = await fetch('/api/users', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, isGlobalAdmin: !current }),
+    });
+    if (res.ok) setUsers(prev => prev.map(u => u.id === userId ? { ...u, isGlobalAdmin: !current } : u));
+  };
+
   const deleteUser = async (userId: string, userName: string) => {
     if (!confirm(`Supprimer l'utilisateur "${userName}" ?`)) return;
     const res = await fetch('/api/users', {
@@ -170,7 +179,7 @@ export default function UsersPage() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={{
-              display: 'grid', gridTemplateColumns: '1fr 1fr 120px 120px 80px',
+              display: 'grid', gridTemplateColumns: '1fr 1fr 140px 120px 80px',
               gap: 12, padding: '6px 16px',
               color: '#5a7a6a', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em',
             }}>
@@ -178,7 +187,7 @@ export default function UsersPage() {
             </div>
             {users.map(u => (
               <div key={u.id} style={{
-                display: 'grid', gridTemplateColumns: '1fr 1fr 120px 120px 80px',
+                display: 'grid', gridTemplateColumns: '1fr 1fr 140px 120px 80px',
                 gap: 12, alignItems: 'center',
                 backgroundColor: G5, borderRadius: 10, padding: '13px 16px',
                 border: `1px solid ${G3}`,
@@ -186,13 +195,22 @@ export default function UsersPage() {
                 <span style={{ fontWeight: 600, fontSize: 14 }}>{u.name || <span style={{ color: '#5a7a6a', fontStyle: 'italic' }}>—</span>}</span>
                 <span style={{ color: '#7a9e8e', fontSize: 13 }}>{u.email}</span>
                 <span>
-                  {u.isGlobalAdmin ? (
+                  {u.id !== session?.user?.id ? (
+                    <button
+                      onClick={() => toggleAdmin(u.id, u.isGlobalAdmin)}
+                      style={{
+                        backgroundColor: u.isGlobalAdmin ? ORANGE + '22' : G3,
+                        color: u.isGlobalAdmin ? ORANGE : '#7a9e8e',
+                        border: `1px solid ${u.isGlobalAdmin ? ORANGE + '44' : G4}`,
+                        borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {u.isGlobalAdmin ? 'Admin' : 'Utilisateur'}
+                    </button>
+                  ) : (
                     <span style={{ backgroundColor: ORANGE + '22', color: ORANGE, borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 700 }}>
                       Admin
-                    </span>
-                  ) : (
-                    <span style={{ backgroundColor: G3, color: '#7a9e8e', borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 700 }}>
-                      Utilisateur
                     </span>
                   )}
                 </span>
