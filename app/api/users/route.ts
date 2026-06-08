@@ -47,6 +47,24 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ id, email: email.toLowerCase().trim(), name: name || '', isGlobalAdmin, createdAt: now });
 }
 
+/* PATCH /api/users — toggle global admin (global admin only) */
+export async function PATCH(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+  if (!session.user.isGlobalAdmin) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+  await initDb();
+
+  const { userId, isGlobalAdmin } = await req.json();
+  if (!userId) return NextResponse.json({ error: 'userId requis' }, { status: 400 });
+  if (userId === session.user.id) return NextResponse.json({ error: 'Impossible de modifier son propre rôle' }, { status: 400 });
+
+  await db.execute({
+    sql: 'UPDATE users SET is_global_admin = ? WHERE id = ?',
+    args: [isGlobalAdmin ? 1 : 0, userId],
+  });
+  return NextResponse.json({ ok: true });
+}
+
 /* DELETE /api/users — delete user (global admin only) */
 export async function DELETE(req: NextRequest) {
   const session = await getServerSession(authOptions);
