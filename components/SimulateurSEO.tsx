@@ -507,7 +507,7 @@ export default function SimulateurSEO() {
       // Break-even = first month where monthly CA covers monthly budget cost
       if (bev === -1 && ca >= monthlyBudget) bev = m;
       const cplMonth = leads > 0.5 ? Math.round(monthlyBudget / leads) : null;
-      return { month: label, budget: Math.round(monthlyBudget), ca: Math.round(ca), leads: Math.round(leads * 10) / 10, cplMonth, isBev: bev === m };
+      return { month: label, budget: Math.round(monthlyBudget), ca: Math.round(ca), leads: Math.round(leads), cplMonth, isBev: bev === m };
     });
     const bevLabel = bev > 0
       ? (seasonalityEnabled ? MONTH_NAMES[(startMonth + bev - 1) % 12] : `M${bev}`)
@@ -1494,7 +1494,7 @@ export default function SimulateurSEO() {
               <ComposedChart data={monthlyData} margin={{ top: 8, right: 48, left: 0, bottom: 4 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={G3} vertical={false} />
                 <XAxis dataKey="month" tick={{ fill: '#7a9e8e', fontSize: 11 }} axisLine={{ stroke: G3 }} tickLine={false} />
-                <YAxis yAxisId="leads" tick={{ fill: '#7a9e8e', fontSize: 10 }} axisLine={{ stroke: G3 }} tickLine={false} width={30} />
+                <YAxis yAxisId="leads" tick={{ fill: '#7a9e8e', fontSize: 10 }} axisLine={{ stroke: G3 }} tickLine={false} width={30} allowDecimals={false} tickFormatter={v => Math.round(v).toString()} />
                 <YAxis yAxisId="cpl" orientation="right" tick={{ fill: '#7a9e8e', fontSize: 10 }} axisLine={false} tickLine={false} width={46}
                   tickFormatter={v => v >= 1000 ? `${(v / 1000).toFixed(0)}k€` : `${v}€`} />
                 <Tooltip
