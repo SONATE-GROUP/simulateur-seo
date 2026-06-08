@@ -9,6 +9,15 @@ export const db = createClient({
 });
 
 export async function initDb() {
+  // Add columns that may be missing in older DB instances (ALTER TABLE ignores existing columns via try/catch)
+  const migrations = [
+    'ALTER TABLE reports ADD COLUMN workspace_id TEXT',
+    'ALTER TABLE reports ADD COLUMN created_by TEXT',
+  ];
+  for (const sql of migrations) {
+    try { await db.execute(sql); } catch { /* column already exists */ }
+  }
+
   await db.executeMultiple(`
     CREATE TABLE IF NOT EXISTS users (
       id               TEXT PRIMARY KEY,
