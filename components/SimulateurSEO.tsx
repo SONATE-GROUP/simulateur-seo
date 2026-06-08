@@ -649,9 +649,12 @@ export default function SimulateurSEO() {
   const updateKw = (id: string, field: keyof Keyword, value: unknown) =>
     setState(s => ({ ...s, keywords: s.keywords.map(k => k.id === id ? { ...k, [field]: value } : k) }));
 
+  const [saveError, setSaveError] = useState('');
+
   const genLink = async () => {
     if (saveState === 'saving') return;
     setSaveState('saving');
+    setSaveError('');
     const stateB64 = encodeState(state);
 
     try {
@@ -661,7 +664,10 @@ export default function SimulateurSEO() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ prospect: state.prospectName, siteUrl: state.siteUrl, sector: state.sector, stateB64 }),
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(`${res.status} – ${body.error ?? 'Erreur serveur'}`);
+        }
         navigator.clipboard.writeText(`${location.origin}${location.pathname}?report=${reportId}`);
       } else {
         const id = uid();
@@ -670,16 +676,21 @@ export default function SimulateurSEO() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id, prospect: state.prospectName, siteUrl: state.siteUrl, sector: state.sector, stateB64, workspaceId: workspaceId || null }),
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(`${res.status} – ${body.error ?? 'Erreur serveur'}`);
+        }
         setReportId(id);
         navigator.clipboard.writeText(`${location.origin}${location.pathname}?report=${id}`);
       }
       setSaveState('saved');
       setTimeout(() => setSaveState('idle'), 3000);
     } catch (err) {
-      console.warn('[genLink] Sauvegarde DB échouée', err);
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn('[genLink] Sauvegarde DB échouée', msg);
+      setSaveError(msg);
       setSaveState('error');
-      setTimeout(() => setSaveState('idle'), 4000);
+      setTimeout(() => setSaveState('idle'), 6000);
     }
   };
 
@@ -810,7 +821,11 @@ export default function SimulateurSEO() {
         )}
 
         {/* Actions */}
-        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
+        {saveError && saveState === 'error' && (
+          <div style={{ color: '#e05050', fontSize: 11, textAlign: 'right' }}>{saveError}</div>
+        )}
+        <div style={{ display: 'flex', gap: 8 }}>
           <button
             onClick={genLink}
             disabled={saveState === 'saving'}
@@ -824,7 +839,7 @@ export default function SimulateurSEO() {
               opacity: saveState === 'saving' ? 0.7 : 1,
             }}
           >
-            {saveState === 'saving' ? '…' : saveState === 'saved' ? '✓ Enregistré !' : saveState === 'error' ? '✗ Erreur de sauvegarde' : reportId ? '💾 Sauvegarder' : '💾 Enregistrer'}
+            {saveState === 'saving' ? '…' : saveState === 'saved' ? '✓ Enregistré !' : saveState === 'error' ? '✗ Erreur' : reportId ? '💾 Sauvegarder' : '💾 Enregistrer'}
           </button>
           <a
             href="/rapports"
@@ -876,6 +891,7 @@ export default function SimulateurSEO() {
             </svg>
             <span style={{ fontSize: 11 }}>{session?.user?.name?.split(' ')[0] || session?.user?.email?.split('@')[0]}</span>
           </button>
+        </div>
         </div>
       </header>
 
