@@ -1456,32 +1456,30 @@ export default function SimulateurSEO() {
 
           {/* BLOC 3 — FUNNEL */}
           <div style={card}>
-            <div style={{ ...secTitle, marginBottom: 10 }}>
+            <div style={{ ...secTitle, marginBottom: 6 }}>
               <span style={{ color: ORANGE, fontSize: 10 }}>◆</span> Entonnoir de conversion
-              <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-                {/* Period toggle */}
-                <div style={{ display: 'flex', gap: 4 }}>
-                  {(['month', 'year'] as const).map(p => (
-                    <button key={p} onClick={() => setFunnelPeriod(p)} style={{
-                      fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 4, cursor: 'pointer',
-                      border: `1px solid ${funnelPeriod === p ? '#3b82f6' : G3}`,
-                      backgroundColor: funnelPeriod === p ? '#3b82f622' : 'transparent',
-                      color: funnelPeriod === p ? '#3b82f6' : '#5a7a6a',
-                    }}>{p === 'month' ? 'Mois' : 'An'}</button>
-                  ))}
-                </div>
-                {/* Business type toggle */}
-                <div style={{ display: 'flex', gap: 4 }}>
-                  {(['ecommerce', 'lead'] as const).map(t => (
-                    <button key={t} onClick={() => update({ businessType: t })} style={{
-                      fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 4, cursor: 'pointer',
-                      border: `1px solid ${businessType === t ? ORANGE : G3}`,
-                      backgroundColor: businessType === t ? `${ORANGE}22` : 'transparent',
-                      color: businessType === t ? ORANGE : '#5a7a6a',
-                    }}>{t === 'ecommerce' ? 'E-commerce' : 'Lead'}</button>
-                  ))}
-                </div>
+              {/* Business type toggle */}
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
+                {(['ecommerce', 'lead'] as const).map(t => (
+                  <button key={t} onClick={() => update({ businessType: t })} style={{
+                    fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 4, cursor: 'pointer',
+                    border: `1px solid ${businessType === t ? ORANGE : G3}`,
+                    backgroundColor: businessType === t ? `${ORANGE}22` : 'transparent',
+                    color: businessType === t ? ORANGE : '#5a7a6a',
+                  }}>{t === 'ecommerce' ? 'E-commerce' : 'Lead'}</button>
+                ))}
               </div>
+            </div>
+            {/* Period toggle */}
+            <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
+              {(['month', 'year'] as const).map(p => (
+                <button key={p} onClick={() => setFunnelPeriod(p)} style={{
+                  fontSize: 10, fontWeight: 700, padding: '3px 14px', borderRadius: 4, cursor: 'pointer',
+                  border: `1px solid ${funnelPeriod === p ? '#3b82f6' : G3}`,
+                  backgroundColor: funnelPeriod === p ? '#3b82f622' : 'transparent',
+                  color: funnelPeriod === p ? '#3b82f6' : '#5a7a6a',
+                }}>{p === 'month' ? '/ Mois' : '/ An'}</button>
+              ))}
             </div>
             {(() => {
               const { totalImpressions: imp, totalTraffic: traf, baseLeads, baseRdv, baseClosing, totalCA } = totals;
