@@ -36,7 +36,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
-  if (!session.user.isGlobalAdmin) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+  // Any authenticated user can create a workspace
   await initDb();
 
   const { name } = await req.json();

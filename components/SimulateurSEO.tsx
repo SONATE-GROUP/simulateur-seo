@@ -652,6 +652,9 @@ export default function SimulateurSEO() {
   const [saveError, setSaveError] = useState('');
   const [showWorkspaceModal, setShowWorkspaceModal] = useState(false);
   const [pendingWorkspaceId, setPendingWorkspaceId] = useState<string>('');
+  const [creatingNewSpace, setCreatingNewSpace] = useState(false);
+  const [newSpaceName, setNewSpaceName] = useState('');
+  const [newSpaceError, setNewSpaceError] = useState('');
 
   const doSave = async (wsId: string | null) => {
     setSaveState('saving');
@@ -780,7 +783,7 @@ export default function SimulateurSEO() {
         }}>
           <div style={{
             backgroundColor: '#1a2e25', borderRadius: 14, padding: 32,
-            width: 420, border: '1px solid #2d4a3e', boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+            width: 440, border: '1px solid #2d4a3e', boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
           }}>
             <h2 style={{ fontSize: 18, fontWeight: 700, color: '#f5f0e8', marginBottom: 6 }}>
               Enregistrer le rapport
@@ -789,33 +792,79 @@ export default function SimulateurSEO() {
               Dans quel espace client souhaitez-vous enregistrer ce rapport ?
             </p>
 
-            {workspaces.length === 0 ? (
-              <p style={{ color: '#e05050', fontSize: 13, marginBottom: 24 }}>
-                Aucun espace disponible. Créez d&apos;abord un espace client.
-              </p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
-                {workspaces.map(ws => (
-                  <button
-                    key={ws.id}
-                    onClick={() => setPendingWorkspaceId(ws.id)}
-                    style={{
-                      backgroundColor: pendingWorkspaceId === ws.id ? '#3a5c4e' : '#233d30',
-                      border: `2px solid ${pendingWorkspaceId === ws.id ? '#e8571a' : '#2d4a3e'}`,
-                      borderRadius: 10, padding: '12px 16px', color: '#f5f0e8',
-                      fontSize: 14, fontWeight: pendingWorkspaceId === ws.id ? 700 : 400,
-                      cursor: 'pointer', textAlign: 'left', transition: 'all .15s',
-                    }}
-                  >
-                    {ws.name}
-                  </button>
-                ))}
+            {/* Dropdown espaces existants */}
+            {!creatingNewSpace && (
+              <div style={{ marginBottom: 16 }}>
+                <select
+                  value={pendingWorkspaceId}
+                  onChange={e => setPendingWorkspaceId(e.target.value)}
+                  style={{
+                    width: '100%', backgroundColor: '#233d30', border: '1px solid #2d4a3e',
+                    borderRadius: 8, padding: '10px 12px', color: workspaces.length === 0 ? '#7a9e8e' : '#f5f0e8',
+                    fontSize: 14, cursor: 'pointer', outline: 'none',
+                    appearance: 'none',
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%237a9e8e' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`,
+                    backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center',
+                  }}
+                  disabled={workspaces.length === 0}
+                >
+                  {workspaces.length === 0
+                    ? <option value="">Aucun espace disponible</option>
+                    : workspaces.map(ws => <option key={ws.id} value={ws.id}>{ws.name}</option>)
+                  }
+                </select>
               </div>
             )}
 
+            {/* Créer un nouvel espace */}
+            {creatingNewSpace ? (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 13, color: '#7a9e8e', marginBottom: 6 }}>Nom du nouvel espace</div>
+                <input
+                  autoFocus
+                  value={newSpaceName}
+                  onChange={e => { setNewSpaceName(e.target.value); setNewSpaceError(''); }}
+                  placeholder="Ex : Agence Dupont, Client Martin…"
+                  style={{
+                    width: '100%', backgroundColor: '#233d30', border: `1px solid ${newSpaceError ? '#e05050' : '#2d4a3e'}`,
+                    borderRadius: 8, padding: '10px 12px', color: '#f5f0e8',
+                    fontSize: 14, outline: 'none', boxSizing: 'border-box',
+                  }}
+                />
+                {newSpaceError && <div style={{ color: '#e05050', fontSize: 12, marginTop: 4 }}>{newSpaceError}</div>}
+                <button
+                  onClick={() => { setCreatingNewSpace(false); setNewSpaceName(''); setNewSpaceError(''); }}
+                  style={{
+                    background: 'none', border: 'none', color: '#7a9e8e', fontSize: 13,
+                    cursor: 'pointer', marginTop: 8, padding: 0,
+                  }}
+                >
+                  ← Choisir un espace existant
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => { setCreatingNewSpace(true); setPendingWorkspaceId(''); }}
+                style={{
+                  background: 'none', border: '1px dashed #2d4a3e', borderRadius: 8,
+                  color: '#7a9e8e', fontSize: 13, cursor: 'pointer',
+                  padding: '8px 14px', marginBottom: 24, width: '100%', textAlign: 'left',
+                }}
+              >
+                + Créer un nouvel espace
+              </button>
+            )}
+
+            {creatingNewSpace && <div style={{ marginBottom: 24 }} />}
+
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <button
-                onClick={() => setShowWorkspaceModal(false)}
+                onClick={() => {
+                  setShowWorkspaceModal(false);
+                  setCreatingNewSpace(false);
+                  setNewSpaceName('');
+                  setNewSpaceError('');
+                }}
                 style={{
                   backgroundColor: 'transparent', border: '1px solid #2d4a3e',
                   borderRadius: 8, padding: '10px 20px', color: '#7a9e8e',
@@ -825,17 +874,38 @@ export default function SimulateurSEO() {
                 Annuler
               </button>
               <button
-                disabled={!pendingWorkspaceId && workspaces.length > 0}
-                onClick={() => {
-                  setShowWorkspaceModal(false);
-                  setWorkspaceId(pendingWorkspaceId);
-                  doSave(pendingWorkspaceId || null);
+                disabled={creatingNewSpace ? !newSpaceName.trim() : (!pendingWorkspaceId && workspaces.length > 0)}
+                onClick={async () => {
+                  if (creatingNewSpace) {
+                    if (!newSpaceName.trim()) { setNewSpaceError('Veuillez saisir un nom'); return; }
+                    const res = await fetch('/api/workspaces', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ name: newSpaceName.trim() }),
+                    });
+                    if (!res.ok) {
+                      const body = await res.json().catch(() => ({}));
+                      setNewSpaceError(body.error ?? 'Erreur lors de la création');
+                      return;
+                    }
+                    const ws = await res.json();
+                    setWorkspaces(prev => [ws, ...prev]);
+                    setShowWorkspaceModal(false);
+                    setCreatingNewSpace(false);
+                    setNewSpaceName('');
+                    setWorkspaceId(ws.id);
+                    doSave(ws.id);
+                  } else {
+                    setShowWorkspaceModal(false);
+                    setWorkspaceId(pendingWorkspaceId);
+                    doSave(pendingWorkspaceId || null);
+                  }
                 }}
                 style={{
                   backgroundColor: '#e8571a', border: 'none',
                   borderRadius: 8, padding: '10px 24px', color: 'white',
                   fontSize: 14, fontWeight: 700, cursor: 'pointer',
-                  opacity: (!pendingWorkspaceId && workspaces.length > 0) ? 0.5 : 1,
+                  opacity: (creatingNewSpace ? !newSpaceName.trim() : (!pendingWorkspaceId && workspaces.length > 0)) ? 0.5 : 1,
                 }}
               >
                 Enregistrer
