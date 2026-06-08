@@ -363,7 +363,7 @@ function NumInput({ value, min = 0, max, onChange, style }: {
 export default function SimulateurSEO() {
   const { data: session } = useSession();
   const [state, setState] = useState<SimState>(INITIAL);
-  const [linkCopied, setLinkCopied]   = useState(false);
+  const [saveState, setSaveState]     = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [reportId, setReportId]       = useState<string | null>(null);
   const [openCats, setOpenCats] = useState<Set<string>>(new Set(['cat1', 'cat2']));
   const [workspaces, setWorkspaces]   = useState<{ id: string; name: string; role: string }[]>([]);
@@ -650,33 +650,36 @@ export default function SimulateurSEO() {
     setState(s => ({ ...s, keywords: s.keywords.map(k => k.id === id ? { ...k, [field]: value } : k) }));
 
   const genLink = async () => {
+    if (saveState === 'saving') return;
+    setSaveState('saving');
     const stateB64 = encodeState(state);
-    setLinkCopied(true);
-    setTimeout(() => setLinkCopied(false), 2500);
 
     try {
       if (reportId) {
-        // Update existing report
-        await fetch(`/api/reports/${reportId}`, {
+        const res = await fetch(`/api/reports/${reportId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ prospect: state.prospectName, siteUrl: state.siteUrl, sector: state.sector, stateB64 }),
         });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         navigator.clipboard.writeText(`${location.origin}${location.pathname}?report=${reportId}`);
       } else {
-        // Create new report
         const id = uid();
-        await fetch('/api/reports', {
+        const res = await fetch('/api/reports', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id, prospect: state.prospectName, siteUrl: state.siteUrl, sector: state.sector, stateB64, workspaceId: workspaceId || null }),
         });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         setReportId(id);
         navigator.clipboard.writeText(`${location.origin}${location.pathname}?report=${id}`);
       }
+      setSaveState('saved');
+      setTimeout(() => setSaveState('idle'), 3000);
     } catch (err) {
       console.warn('[genLink] Sauvegarde DB échouée', err);
-      navigator.clipboard.writeText(`${location.origin}${location.pathname}?data=${stateB64}`);
+      setSaveState('error');
+      setTimeout(() => setSaveState('idle'), 4000);
     }
   };
 
@@ -810,13 +813,18 @@ export default function SimulateurSEO() {
         <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
           <button
             onClick={genLink}
+            disabled={saveState === 'saving'}
             style={{
-              backgroundColor: 'transparent', border: `1px solid ${G3}`,
-              borderRadius: 6, padding: '7px 14px', color: G2,
-              fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap', transition: 'border-color .15s',
+              backgroundColor: saveState === 'error' ? '#5c1a1a' : 'transparent',
+              border: `1px solid ${saveState === 'saved' ? '#4caf50' : saveState === 'error' ? '#e05050' : G3}`,
+              borderRadius: 6, padding: '7px 14px',
+              color: saveState === 'saved' ? '#4caf50' : saveState === 'error' ? '#e05050' : G2,
+              fontSize: 13, cursor: saveState === 'saving' ? 'not-allowed' : 'pointer',
+              whiteSpace: 'nowrap', transition: 'border-color .15s, color .15s',
+              opacity: saveState === 'saving' ? 0.7 : 1,
             }}
           >
-            {linkCopied ? '✓ Enregistré !' : reportId ? '💾 Sauvegarder' : '🔗 Générer lien'}
+            {saveState === 'saving' ? '…' : saveState === 'saved' ? '✓ Enregistré !' : saveState === 'error' ? '✗ Erreur de sauvegarde' : reportId ? '💾 Sauvegarder' : '💾 Enregistrer'}
           </button>
           <a
             href="/rapports"
