@@ -27,6 +27,44 @@ export async function GET(
   }
 }
 
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+
+  try {
+    await initDb();
+    if (!session.user.isGlobalAdmin) {
+      const reportRes = await db.execute({
+        sql: 'SELECT workspace_id, created_by FROM reports WHERE id = ?',
+        args: [params.id],
+      });
+      if (!reportRes.rows.length) return NextResponse.json({ error: 'Introuvable' }, { status: 404 });
+      const workspaceId = reportRes.rows[0][0] as string | null;
+      const createdBy   = reportRes.rows[0][1] as string;
+      if (createdBy !== session.user.id) {
+        if (workspaceId) {
+          const check = await db.execute({
+            sql: 'SELECT role FROM workspace_members WHERE workspace_id = ? AND user_id = ?',
+            args: [workspaceId, session.user.id],
+          });
+          const role = check.rows[0]?.[0] as string | undefined;
+          if (!role || role === 'reader') return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+        } else {
+          return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+        }
+      }
+    }
+    await db.execute({ sql: 'DELETE FROM reports WHERE id = ?', args: [params.id] });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error('[reports/[id] DELETE]', err);
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+  }
+}
+
 export async function PUT(
   req: NextRequest,
   { params }: { params: { id: string } }

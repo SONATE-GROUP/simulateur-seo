@@ -28,6 +28,12 @@ export default function RapportsPage() {
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const deleteReport = async (id: string, prospect: string) => {
+    if (!confirm(`Supprimer le rapport "${prospect || 'Sans nom'}" ?`)) return;
+    const res = await fetch(`/api/reports/${id}`, { method: 'DELETE' });
+    if (res.ok) setReports(prev => prev.filter(r => r.id !== id));
+  };
+
   useEffect(() => {
     if (status === 'unauthenticated') { router.push('/login'); return; }
     if (status === 'authenticated') {
@@ -93,7 +99,7 @@ export default function RapportsPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{
               display: 'grid',
-              gridTemplateColumns: '1fr 1fr 1fr 1fr 160px 100px',
+              gridTemplateColumns: '1fr 1fr 1fr 1fr 160px 100px 80px',
               gap: 12, padding: '8px 16px',
               color: '#5a7a6a', fontSize: 11, fontWeight: 700,
               textTransform: 'uppercase', letterSpacing: '0.08em',
@@ -104,12 +110,13 @@ export default function RapportsPage() {
               <span>Espace</span>
               <span>Date</span>
               <span></span>
+              <span></span>
             </div>
 
             {reports.map(r => (
               <div key={r.id} style={{
                 display: 'grid',
-                gridTemplateColumns: '1fr 1fr 1fr 1fr 160px 100px',
+                gridTemplateColumns: '1fr 1fr 1fr 1fr 160px 100px 80px',
                 gap: 12, alignItems: 'center',
                 backgroundColor: '#233d30', borderRadius: 10, padding: '14px 16px',
               }}>
@@ -139,6 +146,16 @@ export default function RapportsPage() {
                 >
                   Ouvrir
                 </Link>
+                <button
+                  onClick={() => deleteReport(r.id, r.prospect)}
+                  style={{
+                    backgroundColor: 'transparent', border: '1px solid #e05050',
+                    borderRadius: 6, padding: '6px 10px', color: '#e05050',
+                    fontSize: 12, cursor: 'pointer', width: '100%',
+                  }}
+                >
+                  Supprimer
+                </button>
               </div>
             ))}
           </div>
