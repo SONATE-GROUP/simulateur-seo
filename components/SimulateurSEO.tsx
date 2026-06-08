@@ -124,6 +124,7 @@ const fmtN = (n: number) =>
 const fmtC = (n: number) =>
   new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(Math.round(n));
 const fmtP = (n: number, d = 1) => `${n.toFixed(d)}%`;
+const fmtLeads = (n: number) => n >= 1 ? `${Math.round(n)}` : n > 0 ? n.toFixed(1) : '0';
 
 function encodeState(s: SimState): string {
   const bytes = new TextEncoder().encode(JSON.stringify(s));
@@ -449,10 +450,11 @@ export default function SimulateurSEO() {
       const ctr    = baseCtr * (budgetRatio / 100);
       const traffic = kw.volume * ctr;
       const leads  = traffic * (cr[kw.intention as Intention] / 100);
-      const ca     = leads * basketValue;
+      const leadConv = businessType === 'lead' ? (tauxRdv / 100) * (tauxClosing / 100) : 1;
+      const ca     = leads * basketValue * leadConv;
       return { ...kw, pos, ctr, traffic, leads, ca };
     });
-  }, [keywords, categories, da, healthScore, basketValue, crTransactionnel, crPreAchat, crIntermediaire, crInformationnel, budgetRatio]);
+  }, [keywords, categories, da, healthScore, basketValue, crTransactionnel, crPreAchat, crIntermediaire, crInformationnel, budgetRatio, businessType, tauxRdv, tauxClosing]);
 
   /* Totals */
   const totals = useMemo(() => {
@@ -1436,7 +1438,7 @@ export default function SimulateurSEO() {
           {/* BLOC 2 — SECONDARY KPIs */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 14 }}>
             <KPICard label="Trafic organique / mois" value={fmtN(totals.totalTraffic)} />
-            <KPICard label="Leads / mois (à 12 mois)" value={totals.totalLeads.toFixed(1)} />
+            <KPICard label="Leads / mois (à 12 mois)" value={fmtLeads(totals.totalLeads)} />
             <KPICard label="Sujets clés à traiter" value={`${totals.nbPages}`} />
             <KPICard label="Budget mensuel" value={fmtC(totals.budgetMensuel)} accent />
           </div>
@@ -1465,9 +1467,9 @@ export default function SimulateurSEO() {
                     stages={[
                       { label: 'Impressions',   value: fmtN(imp),               active: true },
                       { label: 'Clics',          value: fmtN(traf),              active: true },
-                      { label: 'Leads',          value: baseLeads.toFixed(1),    active: true },
-                      { label: 'Prise de RDV',   value: baseRdv.toFixed(1),      active: true },
-                      { label: 'Closing',        value: baseClosing.toFixed(1),  active: true },
+                      { label: 'Leads',          value: fmtLeads(baseLeads),   active: true },
+                      { label: 'Prise de RDV',   value: fmtLeads(baseRdv),     active: true },
+                      { label: 'Closing',        value: fmtLeads(baseClosing), active: true },
                       { label: 'CA / mois',      value: fmtC(totalCA),           active: true },
                     ]}
                     rates={[
@@ -1485,7 +1487,7 @@ export default function SimulateurSEO() {
                   stages={[
                     { label: 'Impressions',  value: fmtN(imp),            active: true },
                     { label: 'Clics',        value: fmtN(traf),           active: true },
-                    { label: 'Transactions', value: baseLeads.toFixed(1), active: true },
+                    { label: 'Transactions', value: fmtLeads(baseLeads), active: true },
                     { label: 'CA / mois',    value: fmtC(totalCA),        active: true },
                   ]}
                   rates={[
@@ -1708,7 +1710,7 @@ export default function SimulateurSEO() {
                     <td></td>
                     <td></td>
                     <td style={{ padding: '10px 8px', textAlign: 'right', color: CREAM, fontWeight: 700 }}>{fmtN(totals.totalTraffic)}</td>
-                    <td style={{ padding: '10px 8px', textAlign: 'right', color: CREAM, fontWeight: 700 }}>{totals.totalLeads.toFixed(2)}</td>
+                    <td style={{ padding: '10px 8px', textAlign: 'right', color: CREAM, fontWeight: 700 }}>{fmtLeads(totals.totalLeads)}</td>
                     <td style={{ padding: '10px 8px', textAlign: 'right', color: ORANGE, fontWeight: 800, fontSize: 14 }}>{fmtC(totals.totalCA)}</td>
                     <td></td>
                   </tr>
