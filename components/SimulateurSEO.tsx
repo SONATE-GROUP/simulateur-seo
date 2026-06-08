@@ -650,9 +650,10 @@ export default function SimulateurSEO() {
     setState(s => ({ ...s, keywords: s.keywords.map(k => k.id === id ? { ...k, [field]: value } : k) }));
 
   const [saveError, setSaveError] = useState('');
+  const [showWorkspaceModal, setShowWorkspaceModal] = useState(false);
+  const [pendingWorkspaceId, setPendingWorkspaceId] = useState<string>('');
 
-  const genLink = async () => {
-    if (saveState === 'saving') return;
+  const doSave = async (wsId: string | null) => {
     setSaveState('saving');
     setSaveError('');
     const stateB64 = encodeState(state);
@@ -674,7 +675,7 @@ export default function SimulateurSEO() {
         const res = await fetch('/api/reports', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id, prospect: state.prospectName, siteUrl: state.siteUrl, sector: state.sector, stateB64, workspaceId: workspaceId || null }),
+          body: JSON.stringify({ id, prospect: state.prospectName, siteUrl: state.siteUrl, sector: state.sector, stateB64, workspaceId: wsId }),
         });
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
@@ -687,10 +688,20 @@ export default function SimulateurSEO() {
       setTimeout(() => setSaveState('idle'), 3000);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.warn('[genLink] Sauvegarde DB échouée', msg);
+      console.warn('[doSave] Sauvegarde DB échouée', msg);
       setSaveError(msg);
       setSaveState('error');
       setTimeout(() => setSaveState('idle'), 6000);
+    }
+  };
+
+  const genLink = () => {
+    if (saveState === 'saving') return;
+    if (reportId) {
+      doSave(null);
+    } else {
+      setPendingWorkspaceId(workspaces.length > 0 ? workspaces[0].id : '');
+      setShowWorkspaceModal(true);
     }
   };
 
@@ -761,6 +772,79 @@ export default function SimulateurSEO() {
   return (
     <div style={{ backgroundColor: G, height: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'Inter, sans-serif' }}>
 
+      {/* Workspace selection modal */}
+      {showWorkspaceModal && (
+        <div style={{
+          position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+        }}>
+          <div style={{
+            backgroundColor: '#1a2e25', borderRadius: 14, padding: 32,
+            width: 420, border: '1px solid #2d4a3e', boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+          }}>
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: '#f5f0e8', marginBottom: 6 }}>
+              Enregistrer le rapport
+            </h2>
+            <p style={{ color: '#7a9e8e', fontSize: 14, marginBottom: 24 }}>
+              Dans quel espace client souhaitez-vous enregistrer ce rapport ?
+            </p>
+
+            {workspaces.length === 0 ? (
+              <p style={{ color: '#e05050', fontSize: 13, marginBottom: 24 }}>
+                Aucun espace disponible. Créez d&apos;abord un espace client.
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
+                {workspaces.map(ws => (
+                  <button
+                    key={ws.id}
+                    onClick={() => setPendingWorkspaceId(ws.id)}
+                    style={{
+                      backgroundColor: pendingWorkspaceId === ws.id ? '#3a5c4e' : '#233d30',
+                      border: `2px solid ${pendingWorkspaceId === ws.id ? '#e8571a' : '#2d4a3e'}`,
+                      borderRadius: 10, padding: '12px 16px', color: '#f5f0e8',
+                      fontSize: 14, fontWeight: pendingWorkspaceId === ws.id ? 700 : 400,
+                      cursor: 'pointer', textAlign: 'left', transition: 'all .15s',
+                    }}
+                  >
+                    {ws.name}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setShowWorkspaceModal(false)}
+                style={{
+                  backgroundColor: 'transparent', border: '1px solid #2d4a3e',
+                  borderRadius: 8, padding: '10px 20px', color: '#7a9e8e',
+                  fontSize: 14, cursor: 'pointer',
+                }}
+              >
+                Annuler
+              </button>
+              <button
+                disabled={!pendingWorkspaceId && workspaces.length > 0}
+                onClick={() => {
+                  setShowWorkspaceModal(false);
+                  setWorkspaceId(pendingWorkspaceId);
+                  doSave(pendingWorkspaceId || null);
+                }}
+                style={{
+                  backgroundColor: '#e8571a', border: 'none',
+                  borderRadius: 8, padding: '10px 24px', color: 'white',
+                  fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                  opacity: (!pendingWorkspaceId && workspaces.length > 0) ? 0.5 : 1,
+                }}
+              >
+                Enregistrer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── HEADER ── */}
       <header style={{
         backgroundColor: '#ffffff', borderBottom: '1px solid #e8e8e8',
@@ -802,23 +886,6 @@ export default function SimulateurSEO() {
             />
           ))}
         </div>
-
-        {/* Workspace selector */}
-        {workspaces.length > 0 && (
-          <select
-            value={workspaceId}
-            onChange={e => setWorkspaceId(e.target.value)}
-            style={{
-              backgroundColor: '#f5f5f5', border: '1px solid #ddd',
-              borderRadius: 6, padding: '7px 11px', color: '#1a3a2a',
-              fontSize: 13, outline: 'none', flexShrink: 0, maxWidth: 180,
-            }}
-          >
-            {workspaces.map(ws => (
-              <option key={ws.id} value={ws.id}>{ws.name}</option>
-            ))}
-          </select>
-        )}
 
         {/* Actions */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
