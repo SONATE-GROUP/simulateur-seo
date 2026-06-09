@@ -5,6 +5,8 @@ import { db, initDb } from '@/lib/turso';
 
 export const runtime = 'nodejs';
 
+function uid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
+
 export async function GET(
   _req: NextRequest,
   { params }: { params: { id: string } }
@@ -19,6 +21,15 @@ export async function GET(
     if (result.rows.length === 0) {
       return NextResponse.json({ error: 'Rapport introuvable' }, { status: 404 });
     }
+
+    // Track view if user is authenticated (fire-and-forget — never blocks the response)
+    getServerSession(authOptions).then(session => {
+      if (!session?.user?.id) return;
+      db.execute({
+        sql: 'INSERT INTO report_views (id, report_id, user_id, viewed_at) VALUES (?, ?, ?, ?)',
+        args: [uid(), params.id, session.user.id, new Date().toISOString()],
+      }).catch(() => { /* ignore tracking errors */ });
+    }).catch(() => { /* ignore */ });
 
     return NextResponse.json({ stateB64: result.rows[0][0] });
   } catch (err) {

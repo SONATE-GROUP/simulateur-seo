@@ -107,6 +107,24 @@ export default function UsersPage() {
   const [accessData, setAccessData]       = useState<Record<string, AccessWorkspace[]>>({});
   const [accessLoading, setAccessLoading] = useState<string | null>(null);
 
+  // Activity feed
+  type ActivityItem =
+    | { type: 'login'; userId: string; userName: string | null; userEmail: string; date: string; loginCount: number; firstLogin: string | null }
+    | { type: 'report_view'; viewId: string; date: string; userId: string; userName: string | null; userEmail: string; reportId: string; prospect: string; siteUrl: string };
+  const [activity, setActivity]       = useState<ActivityItem[]>([]);
+  const [activityLoading, setActivityLoading] = useState(false);
+  const [activityOpen, setActivityOpen]       = useState(false);
+
+  const loadActivity = async () => {
+    if (activity.length > 0) { setActivityOpen(o => !o); return; }
+    setActivityOpen(true);
+    setActivityLoading(true);
+    const res = await fetch('/api/admin/activity');
+    const data = await res.json();
+    setActivity(Array.isArray(data) ? data : []);
+    setActivityLoading(false);
+  };
+
   const toggleAccess = async (userId: string) => {
     if (expandedUser === userId) { setExpandedUser(null); return; }
     setExpandedUser(userId);
@@ -451,7 +469,9 @@ export default function UsersPage() {
                     >
                       {u.workspaceCount ?? 0} {expandedUser === u.id ? '▲' : '▼'}
                     </button>
-                    <span style={{ fontSize: 11, color: '#5a7a6a' }}>{fmt(u.firstLoginAt)}</span>
+                    <span style={{ fontSize: 11, color: u.firstLoginAt ? '#7a9e8e' : '#e05050', fontStyle: u.firstLoginAt ? 'normal' : 'italic' }}>
+                      {u.firstLoginAt ? fmt(u.firstLoginAt) : 'Jamais connecté'}
+                    </span>
                     <span style={{ fontSize: 11, color: u.lastLoginAt ? '#7a9e8e' : '#5a7a6a' }}>{fmt(u.lastLoginAt)}</span>
                     <span style={{ fontSize: 11, color: (u.loginCount ?? 0) > 0 ? '#7a9e8e' : '#5a7a6a', textAlign: 'center' }}>{u.loginCount ?? 0}</span>
                     <div>
@@ -517,6 +537,83 @@ export default function UsersPage() {
                   )}
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+
+        {/* ── Activité récente ── */}
+        <div style={{ marginTop: 32 }}>
+          <button
+            onClick={loadActivity}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+              backgroundColor: G5, border: `1px solid ${G3}`, borderRadius: activityOpen ? '10px 10px 0 0' : 10,
+              padding: '13px 18px', cursor: 'pointer', color: CREAM,
+            }}
+          >
+            <span style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7a9e8e' }}>
+              Activité récente
+            </span>
+            <span style={{ marginLeft: 'auto', color: '#5a7a6a', fontSize: 12 }}>{activityOpen ? '▲ Réduire' : '▼ Afficher'}</span>
+          </button>
+
+          {activityOpen && (
+            <div style={{ border: `1px solid ${G3}`, borderTop: 'none', borderRadius: '0 0 10px 10px', overflow: 'hidden' }}>
+              {activityLoading ? (
+                <div style={{ padding: '20px 18px', color: '#5a7a6a', fontSize: 13 }}>Chargement…</div>
+              ) : activity.length === 0 ? (
+                <div style={{ padding: '20px 18px', color: '#5a7a6a', fontSize: 13, fontStyle: 'italic' }}>Aucune activité enregistrée.</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  {activity.map((item, i) => (
+                    <div key={item.type === 'login' ? `l-${item.userId}-${i}` : item.viewId} style={{
+                      display: 'flex', alignItems: 'center', gap: 12,
+                      padding: '10px 18px',
+                      backgroundColor: i % 2 === 0 ? G5 : '#1e3529',
+                      borderTop: i === 0 ? 'none' : `1px solid ${G3}`,
+                    }}>
+                      {/* Type badge */}
+                      <span style={{
+                        flexShrink: 0, fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
+                        letterSpacing: '0.06em', borderRadius: 5, padding: '2px 7px',
+                        backgroundColor: item.type === 'login' ? '#4caf7d22' : '#3a7a9e22',
+                        color: item.type === 'login' ? '#4caf7d' : '#5ab8e8',
+                        border: `1px solid ${item.type === 'login' ? '#4caf7d44' : '#5ab8e844'}`,
+                        minWidth: 68, textAlign: 'center',
+                      }}>
+                        {item.type === 'login' ? 'Connexion' : 'Rapport'}
+                      </span>
+                      {/* User */}
+                      <span style={{ fontSize: 13, fontWeight: 600, color: CREAM, minWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {item.userName || item.userEmail}
+                      </span>
+                      {item.userName && (
+                        <span style={{ fontSize: 11, color: '#5a7a6a', minWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {item.userEmail}
+                        </span>
+                      )}
+                      {/* Detail */}
+                      {item.type === 'report_view' && (
+                        <span style={{ fontSize: 12, color: '#7a9e8e', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <Link href={`/?report=${item.reportId}`} style={{ color: '#7a9e8e', textDecoration: 'none' }}>
+                            {item.prospect || 'Sans nom'}{item.siteUrl ? ` — ${item.siteUrl}` : ''}
+                          </Link>
+                        </span>
+                      )}
+                      {item.type === 'login' && (
+                        <span style={{ fontSize: 11, color: '#5a7a6a', flex: 1 }}>
+                          {item.loginCount} connexion{item.loginCount > 1 ? 's' : ''} au total
+                          {item.firstLogin && ` · 1re : ${fmt(item.firstLogin)}`}
+                        </span>
+                      )}
+                      {/* Date */}
+                      <span style={{ flexShrink: 0, fontSize: 11, color: '#5a7a6a', marginLeft: 'auto' }}>
+                        {new Date(item.date).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

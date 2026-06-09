@@ -17,8 +17,7 @@ export async function initDb() {
     'ALTER TABLE users ADD COLUMN last_login_at TEXT',
     'ALTER TABLE users ADD COLUMN login_count INTEGER DEFAULT 0',
     'ALTER TABLE users ADD COLUMN status TEXT DEFAULT \'active\'',
-  ];
-  for (const sql of migrations) {
+  ];  for (const sql of migrations) {
     try { await db.execute(sql); } catch { /* column already exists */ }
   }
 
@@ -72,5 +71,16 @@ export async function initDb() {
       accepted_at    TEXT,
       created_at     TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS report_views (
+      id         TEXT PRIMARY KEY,
+      report_id  TEXT NOT NULL,
+      user_id    TEXT NOT NULL,
+      viewed_at  TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_report_views_report ON report_views(report_id);
+    CREATE INDEX IF NOT EXISTS idx_report_views_user   ON report_views(user_id);
+    CREATE INDEX IF NOT EXISTS idx_report_views_date   ON report_views(viewed_at DESC);
   `);
 }

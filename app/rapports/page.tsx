@@ -20,6 +20,10 @@ interface Report {
   createdAt: string;
   workspaceId: string | null;
   workspaceName: string | null;
+  viewCount: number;
+  lastViewedAt: string | null;
+  lastViewerName: string | null;
+  lastViewerEmail: string | null;
 }
 
 interface Workspace {
@@ -133,9 +137,10 @@ export default function RapportsPage() {
     );
   }
 
+  const isAdmin = session?.user?.isGlobalAdmin || workspaces.some(w => w.role === 'owner');
   const cols = canMove
-    ? '1fr 1fr 1fr 180px 150px 80px 80px 80px'
-    : '1fr 1fr 1fr 180px 150px 100px 80px';
+    ? '1fr 1fr 140px 48px 130px 150px 80px 80px 80px'
+    : '1fr 1fr 140px 48px 130px 150px 100px 80px';
 
   return (
     <main style={{ minHeight: '100vh', backgroundColor: G, color: CREAM, fontFamily: "'Inter', sans-serif", padding: '40px 32px' }}>
@@ -241,9 +246,10 @@ export default function RapportsPage() {
             }}>
               <span>Prospect</span>
               <span>Site</span>
-              <span>Secteur</span>
               <span>Espace client</span>
-              <span>Date</span>
+              <span title="Nombre de consultations">Vues</span>
+              <span>Dernière consultation</span>
+              <span>Date création</span>
               {canMove && <span></span>}
               <span></span>
               <span></span>
@@ -261,27 +267,44 @@ export default function RapportsPage() {
                 gap: 12, alignItems: 'center',
                 backgroundColor: G5, borderRadius: 10, padding: '14px 16px',
               }}>
-                <span style={{ fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <span style={{ fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {r.prospect || <span style={{ color: '#5a7a6a', fontStyle: 'italic' }}>Sans nom</span>}
                 </span>
-                <span style={{ color: '#7a9e8e', fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <span style={{ color: '#7a9e8e', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {r.siteUrl || '—'}
                 </span>
-                <span style={{ color: '#7a9e8e', fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {r.sector || '—'}
-                </span>
-                <span style={{ fontSize: 13 }}>
+                <span style={{ fontSize: 12 }}>
                   {r.workspaceName
                     ? <span style={{
                         backgroundColor: G3, color: '#7a9e8e',
-                        borderRadius: 5, padding: '2px 8px', fontSize: 12,
+                        borderRadius: 5, padding: '2px 8px', fontSize: 11,
                         border: `1px solid ${G4}`, whiteSpace: 'nowrap',
                         overflow: 'hidden', textOverflow: 'ellipsis', display: 'inline-block', maxWidth: '100%',
                       }}>{r.workspaceName}</span>
-                    : <span style={{ color: '#3a5c4e', fontSize: 12, fontStyle: 'italic' }}>Aucun espace</span>
+                    : <span style={{ color: '#3a5c4e', fontSize: 11, fontStyle: 'italic' }}>—</span>
                   }
                 </span>
-                <span style={{ color: '#5a7a6a', fontSize: 12 }}>{fmtDate(r.createdAt)}</span>
+                {/* View count */}
+                <span style={{
+                  fontSize: 12, fontWeight: 700, textAlign: 'center',
+                  color: r.viewCount > 0 ? '#4caf7d' : '#3a5c4e',
+                }} title={r.viewCount > 0 ? `${r.viewCount} consultation${r.viewCount > 1 ? 's' : ''}` : 'Jamais consulté'}>
+                  {r.viewCount > 0 ? r.viewCount : '—'}
+                </span>
+                {/* Last view */}
+                <span style={{ fontSize: 11 }}>
+                  {r.lastViewedAt ? (
+                    <span title={r.lastViewerName || r.lastViewerEmail || ''}>
+                      <span style={{ color: '#7a9e8e', display: 'block' }}>{fmtDate(r.lastViewedAt)}</span>
+                      <span style={{ color: '#5a7a6a', fontSize: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block', maxWidth: 120 }}>
+                        {r.lastViewerName || r.lastViewerEmail || ''}
+                      </span>
+                    </span>
+                  ) : (
+                    <span style={{ color: '#3a5c4e', fontStyle: 'italic' }}>Jamais consulté</span>
+                  )}
+                </span>
+                <span style={{ color: '#5a7a6a', fontSize: 11 }}>{fmtDate(r.createdAt)}</span>
                 {canMove && (
                   <button
                     onClick={() => openMoveModal(r)}
