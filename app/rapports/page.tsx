@@ -51,6 +51,30 @@ export default function RapportsPage() {
   const canMove = session?.user?.isGlobalAdmin ||
     workspaces.some(w => w.role === 'owner');
 
+  // Filters & sort
+  const [search, setSearch]       = useState('');
+  const [filterWs, setFilterWs]   = useState('__all__');
+  const [sortKey, setSortKey]     = useState<'date_desc' | 'date_asc' | 'az' | 'za'>('date_desc');
+
+  const isFiltered = search !== '' || filterWs !== '__all__' || sortKey !== 'date_desc';
+
+  const resetFilters = () => { setSearch(''); setFilterWs('__all__'); setSortKey('date_desc'); };
+
+  const visibleReports = [...reports]
+    .filter(r => {
+      if (search && !r.prospect.toLowerCase().includes(search.toLowerCase())) return false;
+      if (filterWs === '__none__' && r.workspaceId !== null) return false;
+      if (filterWs !== '__all__' && filterWs !== '__none__' && r.workspaceId !== filterWs) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortKey === 'date_desc') return b.createdAt.localeCompare(a.createdAt);
+      if (sortKey === 'date_asc')  return a.createdAt.localeCompare(b.createdAt);
+      if (sortKey === 'az')  return (a.prospect || '').localeCompare(b.prospect || '', 'fr');
+      if (sortKey === 'za')  return (b.prospect || '').localeCompare(a.prospect || '', 'fr');
+      return 0;
+    });
+
   useEffect(() => {
     if (status === 'unauthenticated') { router.push('/login'); return; }
     if (status === 'authenticated') {
@@ -141,6 +165,65 @@ export default function RapportsPage() {
           </div>
         </div>
 
+        {/* Filters & sort bar */}
+        {reports.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Rechercher un prospect…"
+              style={{
+                flex: '1 1 180px', minWidth: 0,
+                backgroundColor: G5, border: `1px solid ${G3}`,
+                borderRadius: 7, padding: '8px 12px', color: CREAM,
+                fontSize: 13, outline: 'none',
+              }}
+            />
+            <select
+              value={filterWs}
+              onChange={e => setFilterWs(e.target.value)}
+              style={{
+                flex: '0 1 180px',
+                backgroundColor: G5, border: `1px solid ${filterWs !== '__all__' ? ORANGE : G3}`,
+                borderRadius: 7, padding: '8px 10px',
+                color: filterWs !== '__all__' ? CREAM : '#7a9e8e',
+                fontSize: 13, outline: 'none', cursor: 'pointer',
+              }}
+            >
+              <option value="__all__">Tous les espaces</option>
+              <option value="__none__">Aucun espace</option>
+              {workspaces.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+            </select>
+            <select
+              value={sortKey}
+              onChange={e => setSortKey(e.target.value as typeof sortKey)}
+              style={{
+                flex: '0 1 180px',
+                backgroundColor: G5, border: `1px solid ${sortKey !== 'date_desc' ? ORANGE : G3}`,
+                borderRadius: 7, padding: '8px 10px', color: CREAM,
+                fontSize: 13, outline: 'none', cursor: 'pointer',
+              }}
+            >
+              <option value="date_desc">Plus récent d'abord</option>
+              <option value="date_asc">Plus ancien d'abord</option>
+              <option value="az">Nom A → Z</option>
+              <option value="za">Nom Z → A</option>
+            </select>
+            {isFiltered && (
+              <button
+                onClick={resetFilters}
+                style={{
+                  backgroundColor: 'transparent', border: `1px solid ${G3}`,
+                  borderRadius: 7, padding: '8px 14px', color: '#7a9e8e',
+                  fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+                }}
+              >
+                Réinitialiser
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Table */}
         {reports.length === 0 ? (
           <div style={{ backgroundColor: G5, borderRadius: 12, padding: '48px 32px', textAlign: 'center', color: '#7a9e8e', fontSize: 15 }}>
@@ -166,7 +249,13 @@ export default function RapportsPage() {
               <span></span>
             </div>
 
-            {reports.map(r => (
+            {visibleReports.length === 0 && (
+              <div style={{ color: '#5a7a6a', fontSize: 13, padding: '24px 16px', textAlign: 'center' }}>
+                Aucun rapport ne correspond aux filtres.
+              </div>
+            )}
+
+            {visibleReports.map(r => (
               <div key={r.id} style={{
                 display: 'grid', gridTemplateColumns: cols,
                 gap: 12, alignItems: 'center',
