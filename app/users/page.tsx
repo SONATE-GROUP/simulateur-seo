@@ -98,6 +98,11 @@ export default function UsersPage() {
   const [freshLink, setFreshLink]             = useState<string | null>(null);
   const [copied, setCopied]                   = useState(false);
 
+  // Direct create form
+  const [createForm, setCreateForm]   = useState({ email: '', password: '', name: '' });
+  const [creating, setCreating]       = useState(false);
+  const [createMsg, setCreateMsg]     = useState<{ ok: boolean; text: string } | null>(null);
+
   // Resend state
   const [resending, setResending]   = useState<string | null>(null);
   const [resendLinks, setResendLinks] = useState<Record<string, string>>({});
@@ -210,6 +215,27 @@ export default function UsersPage() {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
     // Mark as copied per-row too (reuse copied state for simplicity)
+  };
+
+  const createUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreateMsg(null);
+    if (!createForm.email || !createForm.password) return;
+    setCreating(true);
+    const res = await fetch('/api/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(createForm),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      setUsers(prev => [data, ...prev]);
+      setCreateForm({ email: '', password: '', name: '' });
+      setCreateMsg({ ok: true, text: `Compte créé pour ${createForm.email}` });
+    } else {
+      setCreateMsg({ ok: false, text: data.error || 'Erreur' });
+    }
+    setCreating(false);
   };
 
   const toggleAdmin = async (userId: string, current: boolean) => {
@@ -337,6 +363,52 @@ export default function UsersPage() {
               </button>
             </div>
           )}
+        </div>
+
+        {/* Direct create form */}
+        <div style={{ backgroundColor: G5, borderRadius: 12, padding: 20, marginBottom: 24, border: `1px solid ${G3}` }}>
+          <h2 style={{ fontSize: 13, fontWeight: 700, marginBottom: 14, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7a9e8e' }}>
+            Créer un compte directement
+          </h2>
+          <form onSubmit={createUser}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
+              <input
+                value={createForm.name}
+                onChange={e => setCreateForm(f => ({ ...f, name: e.target.value }))}
+                placeholder="Nom (optionnel)"
+                style={{ backgroundColor: G3, border: `1px solid ${G4}`, borderRadius: 8, padding: '10px 14px', color: CREAM, fontSize: 14, outline: 'none' }}
+              />
+              <input
+                type="email"
+                value={createForm.email}
+                onChange={e => setCreateForm(f => ({ ...f, email: e.target.value }))}
+                placeholder="Email *"
+                required
+                style={{ backgroundColor: G3, border: `1px solid ${G4}`, borderRadius: 8, padding: '10px 14px', color: CREAM, fontSize: 14, outline: 'none' }}
+              />
+              <input
+                type="password"
+                value={createForm.password}
+                onChange={e => setCreateForm(f => ({ ...f, password: e.target.value }))}
+                placeholder="Mot de passe * (8 min.)"
+                required
+                style={{ backgroundColor: G3, border: `1px solid ${G4}`, borderRadius: 8, padding: '10px 14px', color: CREAM, fontSize: 14, outline: 'none' }}
+              />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <button type="submit" disabled={creating} style={{
+                backgroundColor: G4, border: 'none', borderRadius: 8,
+                padding: '10px 24px', color: CREAM, fontSize: 14,
+                fontWeight: 700, cursor: creating ? 'not-allowed' : 'pointer',
+                opacity: creating ? 0.7 : 1,
+              }}>
+                {creating ? 'Création…' : '+ Créer le compte'}
+              </button>
+              {createMsg && (
+                <span style={{ fontSize: 13, color: createMsg.ok ? '#4caf7d' : '#e05050' }}>{createMsg.text}</span>
+              )}
+            </div>
+          </form>
         </div>
 
         {/* Invitations list */}
