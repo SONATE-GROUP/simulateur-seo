@@ -5,6 +5,13 @@ import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
+const G    = '#1a2e25';
+const G3   = '#2d4a3e';
+const G4   = '#3a5c4e';
+const G5   = '#233d30';
+const CREAM  = '#f5f0e8';
+const ORANGE = '#e8571a';
+
 interface Report {
   id: string;
   prospect: string;
@@ -15,6 +22,12 @@ interface Report {
   workspaceName: string | null;
 }
 
+interface Workspace {
+  id: string;
+  name: string;
+  role: string;
+}
+
 function fmtDate(iso: string) {
   return new Intl.DateTimeFormat('fr-FR', {
     day: '2-digit', month: '2-digit', year: 'numeric',
@@ -23,10 +36,34 @@ function fmtDate(iso: string) {
 }
 
 export default function RapportsPage() {
-  const { status } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
-  const [reports, setReports] = useState<Report[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [reports, setReports]     = useState<Report[]>([]);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [loading, setLoading]     = useState(true);
+
+  // Move modal state
+  const [moving, setMoving]           = useState<Report | null>(null);
+  const [targetWs, setTargetWs]       = useState<string>('__none__');
+  const [saving, setSaving]           = useState(false);
+  const [moveError, setMoveError]     = useState('');
+
+  const canMove = session?.user?.isGlobalAdmin ||
+    workspaces.some(w => w.role === 'owner');
+
+  useEffect(() => {
+    if (status === 'unauthenticated') { router.push('/login'); return; }
+    if (status === 'authenticated') {
+      Promise.all([
+        fetch('/api/reports').then(r => r.json()),
+        fetch('/api/workspaces').then(r => r.json()),
+      ]).then(([rep, ws]) => {
+        setReports(Array.isArray(rep) ? rep : []);
+        setWorkspaces(Array.isArray(ws) ? ws : []);
+        setLoading(false);
+      }).catch(() => setLoading(false));
+    }
+  }, [status, router]);
 
   const deleteReport = async (id: string, prospect: string) => {
     if (!confirm(`Supprimer le rapport "${prospect || 'Sans nom'}" ?`)) return;
@@ -34,33 +71,51 @@ export default function RapportsPage() {
     if (res.ok) setReports(prev => prev.filter(r => r.id !== id));
   };
 
-  useEffect(() => {
-    if (status === 'unauthenticated') { router.push('/login'); return; }
-    if (status === 'authenticated') {
-      fetch('/api/reports')
-        .then(r => r.json())
-        .then(data => { setReports(Array.isArray(data) ? data : []); setLoading(false); })
-        .catch(() => setLoading(false));
+  const openMoveModal = (report: Report) => {
+    setMoving(report);
+    setTargetWs(report.workspaceId ?? '__none__');
+    setMoveError('');
+  };
+
+  const confirmMove = async () => {
+    if (!moving) return;
+    setSaving(true);
+    setMoveError('');
+    const res = await fetch(`/api/reports/${moving.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workspaceId: targetWs === '__none__' ? null : targetWs }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      const ws = workspaces.find(w => w.id === targetWs);
+      setReports(prev => prev.map(r =>
+        r.id === moving.id
+          ? { ...r, workspaceId: targetWs === '__none__' ? null : targetWs, workspaceName: ws?.name ?? null }
+          : r
+      ));
+      setMoving(null);
+    } else {
+      setMoveError(data.error || 'Erreur');
     }
-  }, [status, router]);
+    setSaving(false);
+  };
 
   if (status === 'loading' || loading) {
     return (
-      <main style={{ minHeight: '100vh', backgroundColor: '#1a2e25', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f5f0e8', fontFamily: 'Inter, sans-serif' }}>
+      <main style={{ minHeight: '100vh', backgroundColor: G, display: 'flex', alignItems: 'center', justifyContent: 'center', color: CREAM, fontFamily: 'Inter, sans-serif' }}>
         Chargement…
       </main>
     );
   }
 
+  const cols = canMove
+    ? '1fr 1fr 1fr 180px 150px 80px 80px 80px'
+    : '1fr 1fr 1fr 180px 150px 100px 80px';
+
   return (
-    <main style={{
-      minHeight: '100vh',
-      backgroundColor: '#1a2e25',
-      color: '#f5f0e8',
-      fontFamily: "'Inter', sans-serif",
-      padding: '40px 32px',
-    }}>
-      <div style={{ maxWidth: 960, margin: '0 auto' }}>
+    <main style={{ minHeight: '100vh', backgroundColor: G, color: CREAM, fontFamily: "'Inter', sans-serif", padding: '40px 32px' }}>
+      <div style={{ maxWidth: 1080, margin: '0 auto' }}>
 
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 }}>
@@ -70,14 +125,14 @@ export default function RapportsPage() {
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <Link href="/workspaces" style={{
-              backgroundColor: 'transparent', border: '1px solid #2d4a3e',
-              color: '#f5f0e8', padding: '9px 18px', borderRadius: 8,
+              backgroundColor: 'transparent', border: `1px solid ${G3}`,
+              color: CREAM, padding: '9px 18px', borderRadius: 8,
               fontSize: 13, fontWeight: 600, textDecoration: 'none',
             }}>
               👥 Espaces
             </Link>
             <Link href="/" style={{
-              backgroundColor: '#e8571a', color: '#fff',
+              backgroundColor: ORANGE, color: '#fff',
               padding: '9px 18px', borderRadius: 8, fontSize: 13,
               fontWeight: 600, textDecoration: 'none',
             }}>
@@ -88,18 +143,15 @@ export default function RapportsPage() {
 
         {/* Table */}
         {reports.length === 0 ? (
-          <div style={{
-            backgroundColor: '#233d30', borderRadius: 12, padding: '48px 32px',
-            textAlign: 'center', color: '#7a9e8e', fontSize: 15,
-          }}>
+          <div style={{ backgroundColor: G5, borderRadius: 12, padding: '48px 32px', textAlign: 'center', color: '#7a9e8e', fontSize: 15 }}>
             Aucun rapport enregistré.<br />
             Générez un lien depuis le simulateur pour sauvegarder une simulation.
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {/* Header row */}
             <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr 1fr 1fr 160px 100px 80px',
+              display: 'grid', gridTemplateColumns: cols,
               gap: 12, padding: '8px 16px',
               color: '#5a7a6a', fontSize: 11, fontWeight: 700,
               textTransform: 'uppercase', letterSpacing: '0.08em',
@@ -107,18 +159,18 @@ export default function RapportsPage() {
               <span>Prospect</span>
               <span>Site</span>
               <span>Secteur</span>
-              <span>Espace</span>
+              <span>Espace client</span>
               <span>Date</span>
+              {canMove && <span></span>}
               <span></span>
               <span></span>
             </div>
 
             {reports.map(r => (
               <div key={r.id} style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr 1fr 1fr 160px 100px 80px',
+                display: 'grid', gridTemplateColumns: cols,
                 gap: 12, alignItems: 'center',
-                backgroundColor: '#233d30', borderRadius: 10, padding: '14px 16px',
+                backgroundColor: G5, borderRadius: 10, padding: '14px 16px',
               }}>
                 <span style={{ fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {r.prospect || <span style={{ color: '#5a7a6a', fontStyle: 'italic' }}>Sans nom</span>}
@@ -129,16 +181,34 @@ export default function RapportsPage() {
                 <span style={{ color: '#7a9e8e', fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {r.sector || '—'}
                 </span>
-                <span style={{ color: '#7a9e8e', fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {r.workspaceName || <span style={{ color: '#3a5c4e' }}>—</span>}
+                <span style={{ fontSize: 13 }}>
+                  {r.workspaceName
+                    ? <span style={{
+                        backgroundColor: G3, color: '#7a9e8e',
+                        borderRadius: 5, padding: '2px 8px', fontSize: 12,
+                        border: `1px solid ${G4}`, whiteSpace: 'nowrap',
+                        overflow: 'hidden', textOverflow: 'ellipsis', display: 'inline-block', maxWidth: '100%',
+                      }}>{r.workspaceName}</span>
+                    : <span style={{ color: '#3a5c4e', fontSize: 12, fontStyle: 'italic' }}>Aucun espace</span>
+                  }
                 </span>
-                <span style={{ color: '#5a7a6a', fontSize: 12 }}>
-                  {fmtDate(r.createdAt)}
-                </span>
+                <span style={{ color: '#5a7a6a', fontSize: 12 }}>{fmtDate(r.createdAt)}</span>
+                {canMove && (
+                  <button
+                    onClick={() => openMoveModal(r)}
+                    style={{
+                      backgroundColor: 'transparent', border: `1px solid ${G4}`,
+                      borderRadius: 6, padding: '5px 10px', color: '#7a9e8e',
+                      fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap',
+                    }}
+                  >
+                    Déplacer
+                  </button>
+                )}
                 <Link
                   href={`/?report=${r.id}`}
                   style={{
-                    backgroundColor: '#3a5c4e', color: '#f5f0e8',
+                    backgroundColor: G4, color: CREAM,
                     padding: '6px 14px', borderRadius: 6, fontSize: 12,
                     fontWeight: 600, textDecoration: 'none',
                     textAlign: 'center', display: 'block',
@@ -161,6 +231,83 @@ export default function RapportsPage() {
           </div>
         )}
       </div>
+
+      {/* Move modal */}
+      {moving && (
+        <div
+          onClick={e => { if (e.target === e.currentTarget) setMoving(null); }}
+          style={{
+            position: 'fixed', inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 1000,
+          }}
+        >
+          <div style={{
+            backgroundColor: G5, borderRadius: 14, padding: '28px 28px 24px',
+            width: '100%', maxWidth: 420,
+            border: `1px solid ${G3}`,
+            boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+          }}>
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: CREAM, marginBottom: 6 }}>
+              Déplacer le rapport
+            </h2>
+            <p style={{ color: '#7a9e8e', fontSize: 13, marginBottom: 20 }}>
+              <strong style={{ color: CREAM }}>{moving.prospect || 'Sans nom'}</strong>
+              {moving.workspaceName && (
+                <> · actuellement dans <strong style={{ color: '#7a9e8e' }}>{moving.workspaceName}</strong></>
+              )}
+            </p>
+
+            <label style={{ display: 'block', color: '#7a9e8e', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+              Espace cible
+            </label>
+            <select
+              value={targetWs}
+              onChange={e => setTargetWs(e.target.value)}
+              style={{
+                width: '100%', backgroundColor: G3, border: `1px solid ${G4}`,
+                borderRadius: 8, padding: '10px 14px', color: CREAM,
+                fontSize: 14, outline: 'none', marginBottom: 20,
+              }}
+            >
+              <option value="__none__">— Aucun espace —</option>
+              {workspaces.map(w => (
+                <option key={w.id} value={w.id}>{w.name}</option>
+              ))}
+            </select>
+
+            {moveError && (
+              <p style={{ color: '#e05050', fontSize: 13, marginBottom: 14 }}>{moveError}</p>
+            )}
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setMoving(null)}
+                style={{
+                  backgroundColor: 'transparent', border: `1px solid ${G4}`,
+                  borderRadius: 8, padding: '9px 20px', color: '#7a9e8e',
+                  fontSize: 13, cursor: 'pointer',
+                }}
+              >
+                Annuler
+              </button>
+              <button
+                onClick={confirmMove}
+                disabled={saving || targetWs === (moving.workspaceId ?? '__none__')}
+                style={{
+                  backgroundColor: ORANGE, border: 'none', borderRadius: 8,
+                  padding: '9px 20px', color: 'white', fontSize: 13, fontWeight: 700,
+                  cursor: (saving || targetWs === (moving.workspaceId ?? '__none__')) ? 'not-allowed' : 'pointer',
+                  opacity: (saving || targetWs === (moving.workspaceId ?? '__none__')) ? 0.6 : 1,
+                }}
+              >
+                {saving ? 'Déplacement…' : 'Confirmer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
