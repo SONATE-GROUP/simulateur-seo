@@ -79,6 +79,15 @@ export async function initDb() {
       viewed_at  TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS password_resets (
+      id         TEXT PRIMARY KEY,
+      token      TEXT UNIQUE NOT NULL,
+      user_id    TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      used_at    TEXT,
+      created_at TEXT NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_report_views_report ON report_views(report_id);
     CREATE INDEX IF NOT EXISTS idx_report_views_user   ON report_views(user_id);
     CREATE INDEX IF NOT EXISTS idx_report_views_date   ON report_views(viewed_at DESC);
