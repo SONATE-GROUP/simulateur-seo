@@ -14,12 +14,19 @@ export async function GET() {
   if (!session.user.isGlobalAdmin) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
   await initDb();
 
-  const res = await db.execute(
-    'SELECT id, email, name, is_global_admin, created_at, first_login_at, last_login_at, login_count FROM users ORDER BY created_at DESC'
-  );
+  const res = await db.execute(`
+    SELECT u.id, u.email, u.name, u.is_global_admin, u.created_at,
+           u.first_login_at, u.last_login_at, u.login_count,
+           COUNT(wm.workspace_id) as workspace_count
+    FROM users u
+    LEFT JOIN workspace_members wm ON wm.user_id = u.id
+    GROUP BY u.id
+    ORDER BY u.created_at DESC
+  `);
   return NextResponse.json(res.rows.map(r => ({
     id: r[0], email: r[1], name: r[2], isGlobalAdmin: Boolean(r[3]), createdAt: r[4],
     firstLoginAt: r[5] ?? null, lastLoginAt: r[6] ?? null, loginCount: r[7] ?? 0,
+    workspaceCount: Number(r[8]) ?? 0,
   })));
 }
 

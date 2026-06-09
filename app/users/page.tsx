@@ -21,7 +21,26 @@ interface User {
   firstLoginAt?: string | null;
   lastLoginAt?: string | null;
   loginCount?: number;
+  workspaceCount?: number;
 }
+
+interface AccessWorkspace {
+  id: string;
+  name: string;
+  role: string;
+  reports: { id: string; prospect: string; siteUrl: string; sector: string; createdAt: string }[];
+}
+
+const ROLE_LABEL: Record<string, string> = {
+  owner:  'Propriétaire',
+  editor: 'Éditeur',
+  reader: 'Lecteur',
+};
+const ROLE_COLOR: Record<string, string> = {
+  owner:  '#e8571a',
+  editor: '#4caf7d',
+  reader: '#7a9e8e',
+};
 
 interface Invitation {
   id: string;
@@ -82,6 +101,22 @@ export default function UsersPage() {
   // Resend state
   const [resending, setResending]   = useState<string | null>(null);
   const [resendLinks, setResendLinks] = useState<Record<string, string>>({});
+
+  // Access panel per user
+  const [expandedUser, setExpandedUser]   = useState<string | null>(null);
+  const [accessData, setAccessData]       = useState<Record<string, AccessWorkspace[]>>({});
+  const [accessLoading, setAccessLoading] = useState<string | null>(null);
+
+  const toggleAccess = async (userId: string) => {
+    if (expandedUser === userId) { setExpandedUser(null); return; }
+    setExpandedUser(userId);
+    if (accessData[userId]) return; // already loaded
+    setAccessLoading(userId);
+    const res = await fetch(`/api/users/${userId}/access`);
+    const data = await res.json();
+    setAccessData(prev => ({ ...prev, [userId]: data.workspaces ?? [] }));
+    setAccessLoading(null);
+  };
 
   const loadData = useCallback(async () => {
     const [usersRes, invRes, wsRes] = await Promise.all([
@@ -371,60 +406,115 @@ export default function UsersPage() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <div style={{
-                display: 'grid', gridTemplateColumns: '1fr 1fr 130px 100px 100px 100px 80px',
+                display: 'grid', gridTemplateColumns: '1fr 1fr 130px 72px 100px 100px 80px 80px',
                 gap: 10, padding: '4px 16px',
                 color: '#5a7a6a', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em',
               }}>
-                <span>Nom</span><span>Email</span><span>Rôle</span><span>1re cnx</span><span>Dernière cnx</span><span>Connexions</span><span></span>
+                <span>Nom</span><span>Email</span><span>Rôle</span><span>Espaces</span><span>1re cnx</span><span>Dernière cnx</span><span>Cnx</span><span></span>
               </div>
               {users.map(u => (
-                <div key={u.id} style={{
-                  display: 'grid', gridTemplateColumns: '1fr 1fr 130px 100px 100px 100px 80px',
-                  gap: 10, alignItems: 'center',
-                  backgroundColor: G5, borderRadius: 10, padding: '12px 16px',
-                  border: `1px solid ${G3}`,
-                }}>
-                  <span style={{ fontWeight: 600, fontSize: 13 }}>{u.name || <span style={{ color: '#5a7a6a', fontStyle: 'italic' }}>—</span>}</span>
-                  <span style={{ color: '#7a9e8e', fontSize: 12 }}>{u.email}</span>
-                  <span>
-                    {u.id !== session?.user?.id ? (
-                      <button
-                        onClick={() => toggleAdmin(u.id, u.isGlobalAdmin)}
-                        style={{
+                <div key={u.id}>
+                  <div style={{
+                    display: 'grid', gridTemplateColumns: '1fr 1fr 130px 72px 100px 100px 80px 80px',
+                    gap: 10, alignItems: 'center',
+                    backgroundColor: G5, borderRadius: expandedUser === u.id ? '10px 10px 0 0' : 10,
+                    padding: '12px 16px',
+                    border: `1px solid ${expandedUser === u.id ? G4 : G3}`,
+                  }}>
+                    <span style={{ fontWeight: 600, fontSize: 13 }}>{u.name || <span style={{ color: '#5a7a6a', fontStyle: 'italic' }}>—</span>}</span>
+                    <span style={{ color: '#7a9e8e', fontSize: 12 }}>{u.email}</span>
+                    <span>
+                      {u.id !== session?.user?.id ? (
+                        <button onClick={() => toggleAdmin(u.id, u.isGlobalAdmin)} style={{
                           backgroundColor: u.isGlobalAdmin ? ORANGE + '22' : G3,
                           color: u.isGlobalAdmin ? ORANGE : '#7a9e8e',
                           border: `1px solid ${u.isGlobalAdmin ? ORANGE + '44' : G4}`,
-                          borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 700,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {u.isGlobalAdmin ? 'Admin' : 'Utilisateur'}
-                      </button>
-                    ) : (
-                      <span style={{ backgroundColor: ORANGE + '22', color: ORANGE, borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 700 }}>
-                        Admin
-                      </span>
-                    )}
-                  </span>
-                  <span style={{ fontSize: 11, color: '#5a7a6a' }}>{fmt(u.firstLoginAt)}</span>
-                  <span style={{ fontSize: 11, color: u.lastLoginAt ? '#7a9e8e' : '#5a7a6a' }}>{fmt(u.lastLoginAt)}</span>
-                  <span style={{ fontSize: 11, color: (u.loginCount ?? 0) > 0 ? '#7a9e8e' : '#5a7a6a', textAlign: 'center' }}>
-                    {u.loginCount ?? 0}
-                  </span>
-                  <div>
-                    {u.id !== session?.user?.id && (
-                      <button
-                        onClick={() => deleteUser(u.id, u.name || u.email)}
-                        style={{
+                          borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                        }}>
+                          {u.isGlobalAdmin ? 'Admin' : 'Utilisateur'}
+                        </button>
+                      ) : (
+                        <span style={{ backgroundColor: ORANGE + '22', color: ORANGE, borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 700 }}>Admin</span>
+                      )}
+                    </span>
+                    {/* Workspace count badge */}
+                    <button
+                      onClick={() => toggleAccess(u.id)}
+                      title="Voir les accès"
+                      style={{
+                        backgroundColor: (u.workspaceCount ?? 0) === 0 ? '#e0505022' : G3,
+                        color: (u.workspaceCount ?? 0) === 0 ? '#e05050' : '#7a9e8e',
+                        border: `1px solid ${(u.workspaceCount ?? 0) === 0 ? '#e0505044' : G4}`,
+                        borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 700,
+                        cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5,
+                      }}
+                    >
+                      {u.workspaceCount ?? 0} {expandedUser === u.id ? '▲' : '▼'}
+                    </button>
+                    <span style={{ fontSize: 11, color: '#5a7a6a' }}>{fmt(u.firstLoginAt)}</span>
+                    <span style={{ fontSize: 11, color: u.lastLoginAt ? '#7a9e8e' : '#5a7a6a' }}>{fmt(u.lastLoginAt)}</span>
+                    <span style={{ fontSize: 11, color: (u.loginCount ?? 0) > 0 ? '#7a9e8e' : '#5a7a6a', textAlign: 'center' }}>{u.loginCount ?? 0}</span>
+                    <div>
+                      {u.id !== session?.user?.id && (
+                        <button onClick={() => deleteUser(u.id, u.name || u.email)} style={{
                           backgroundColor: 'transparent', border: '1px solid #e05050',
-                          borderRadius: 6, padding: '4px 10px', color: '#e05050',
-                          fontSize: 11, cursor: 'pointer',
-                        }}
-                      >
-                        Supprimer
-                      </button>
-                    )}
+                          borderRadius: 6, padding: '4px 10px', color: '#e05050', fontSize: 11, cursor: 'pointer',
+                        }}>
+                          Supprimer
+                        </button>
+                      )}
+                    </div>
                   </div>
+
+                  {/* Access panel */}
+                  {expandedUser === u.id && (
+                    <div style={{
+                      backgroundColor: '#1e3529', border: `1px solid ${G4}`, borderTop: 'none',
+                      borderRadius: '0 0 10px 10px', padding: '14px 16px',
+                    }}>
+                      {accessLoading === u.id ? (
+                        <span style={{ color: '#5a7a6a', fontSize: 12 }}>Chargement…</span>
+                      ) : (accessData[u.id] ?? []).length === 0 ? (
+                        <span style={{ color: '#5a7a6a', fontSize: 12, fontStyle: 'italic' }}>Aucun espace associé.</span>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          {(accessData[u.id] ?? []).map(ws => (
+                            <div key={ws.id}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                                <Link href={`/workspaces/${ws.id}`} style={{ color: CREAM, fontWeight: 600, fontSize: 13, textDecoration: 'none' }}>
+                                  {ws.name}
+                                </Link>
+                                <span style={{
+                                  backgroundColor: ROLE_COLOR[ws.role] + '22',
+                                  color: ROLE_COLOR[ws.role],
+                                  border: `1px solid ${ROLE_COLOR[ws.role]}44`,
+                                  borderRadius: 5, padding: '1px 7px', fontSize: 10, fontWeight: 700,
+                                }}>
+                                  {ROLE_LABEL[ws.role] ?? ws.role}
+                                </span>
+                                <span style={{ color: '#5a7a6a', fontSize: 11 }}>
+                                  {ws.reports.length} rapport{ws.reports.length !== 1 ? 's' : ''}
+                                </span>
+                              </div>
+                              {ws.reports.length > 0 && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 3, paddingLeft: 12, borderLeft: `2px solid ${G3}` }}>
+                                  {ws.reports.map(r => (
+                                    <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                      <Link href={`/?report=${r.id}`} style={{ color: '#7a9e8e', fontSize: 12, textDecoration: 'none' }}>
+                                        {r.prospect || <em>Sans nom</em>}
+                                      </Link>
+                                      {r.siteUrl && <span style={{ color: '#3a5c4e', fontSize: 11 }}>{r.siteUrl}</span>}
+                                      <span style={{ color: '#3a5c4e', fontSize: 11, marginLeft: 'auto' }}>{fmt(r.createdAt)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

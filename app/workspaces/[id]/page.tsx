@@ -30,6 +30,14 @@ interface Workspace {
   name: string;
 }
 
+interface Report {
+  id: string;
+  prospect: string;
+  siteUrl: string;
+  sector: string;
+  createdAt: string;
+}
+
 interface User {
   id: string;
   email: string;
@@ -45,6 +53,7 @@ export default function WorkspaceDetailPage() {
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [reports, setReports] = useState<Report[]>([]);
   const [addUserId, setAddUserId] = useState('');
   const [addRole, setAddRole] = useState<'owner' | 'editor' | 'reader'>('reader');
   const [adding, setAdding] = useState(false);
@@ -52,6 +61,10 @@ export default function WorkspaceDetailPage() {
   const [loading, setLoading] = useState(true);
   const [renaming, setRenaming] = useState(false);
   const [newName, setNewName] = useState('');
+
+  function fmtDate(iso: string) {
+    return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(iso));
+  }
 
   const loadMembers = useCallback(() => {
     fetch(`/api/workspaces/${workspaceId}/members`)
@@ -67,6 +80,9 @@ export default function WorkspaceDetailPage() {
         .then(r => r.json())
         .then(data => { setWorkspace(data); setNewName(data.name || ''); });
       loadMembers();
+      fetch(`/api/workspaces/${workspaceId}/reports`)
+        .then(r => r.json())
+        .then(data => setReports(Array.isArray(data) ? data : []));
       if (session?.user?.isGlobalAdmin) {
         fetch('/api/users')
           .then(r => r.json())
@@ -234,7 +250,10 @@ export default function WorkspaceDetailPage() {
         )}
 
         {/* Members list */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <h2 style={{ fontSize: 13, fontWeight: 700, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7a9e8e' }}>
+          Membres — {members.length}
+        </h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 28 }}>
           {members.map(m => (
             <div key={m.id} style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -284,6 +303,46 @@ export default function WorkspaceDetailPage() {
             </div>
           ))}
         </div>
+
+        {/* Reports in this workspace */}
+        <h2 style={{ fontSize: 13, fontWeight: 700, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7a9e8e' }}>
+          Rapports — {reports.length}
+        </h2>
+        {reports.length === 0 ? (
+          <div style={{ backgroundColor: G5, borderRadius: 10, padding: '20px 18px', color: '#5a7a6a', fontSize: 13, fontStyle: 'italic', border: `1px solid ${G3}` }}>
+            Aucun rapport rattaché à cet espace.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{
+              display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 100px 60px',
+              gap: 10, padding: '4px 16px',
+              color: '#5a7a6a', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em',
+            }}>
+              <span>Prospect</span><span>Site</span><span>Secteur</span><span>Date</span><span></span>
+            </div>
+            {reports.map(r => (
+              <div key={r.id} style={{
+                display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 100px 60px',
+                gap: 10, alignItems: 'center',
+                backgroundColor: G5, borderRadius: 8, padding: '11px 16px',
+                border: `1px solid ${G3}`,
+              }}>
+                <span style={{ fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {r.prospect || <span style={{ color: '#5a7a6a', fontStyle: 'italic' }}>Sans nom</span>}
+                </span>
+                <span style={{ color: '#7a9e8e', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.siteUrl || '—'}</span>
+                <span style={{ color: '#7a9e8e', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.sector || '—'}</span>
+                <span style={{ color: '#5a7a6a', fontSize: 11 }}>{fmtDate(r.createdAt)}</span>
+                <a href={`/?report=${r.id}`} style={{
+                  backgroundColor: G4, color: CREAM, borderRadius: 6,
+                  padding: '4px 10px', fontSize: 11, fontWeight: 600,
+                  textDecoration: 'none', textAlign: 'center', display: 'block',
+                }}>Ouvrir</a>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </main>
   );
