@@ -997,17 +997,19 @@ export default function SimulateurSEO() {
           >
             {saveState === 'saving' ? '…' : saveState === 'saved' ? '✓ Enregistré !' : saveState === 'error' ? '✗ Erreur' : reportId ? '💾 Sauvegarder' : '💾 Enregistrer'}
           </button>
-          <a
-            href="/admin/rapports"
-            style={{
-              backgroundColor: 'transparent', border: `1px solid ${G3}`,
-              borderRadius: 6, padding: '7px 14px', color: G2,
-              fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap',
-              textDecoration: 'none', display: 'flex', alignItems: 'center',
-            }}
-          >
-            📋 Rapports
-          </a>
+          {(session?.user?.isGlobalAdmin || workspaces.some(w => w.role === 'owner')) && (
+            <a
+              href="/admin/rapports"
+              style={{
+                backgroundColor: 'transparent', border: `1px solid ${G3}`,
+                borderRadius: 6, padding: '7px 14px', color: G2,
+                fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap',
+                textDecoration: 'none', display: 'flex', alignItems: 'center',
+              }}
+            >
+              ⚙️ Back-office
+            </a>
+          )}
           <button
             onClick={exportPDF}
             style={{
@@ -1018,18 +1020,6 @@ export default function SimulateurSEO() {
           >
             ↓ Exporter PDF
           </button>
-          <a
-            href="/admin/workspaces"
-            style={{
-              backgroundColor: 'transparent', border: `1px solid ${G3}`,
-              borderRadius: 6, padding: '7px 12px', color: G2,
-              fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap',
-              textDecoration: 'none', display: 'flex', alignItems: 'center',
-            }}
-            title="Espaces de travail"
-          >
-            👥
-          </a>
           <button
             onClick={() => signOut({ callbackUrl: '/login' })}
             title={session?.user?.name || session?.user?.email || 'Se déconnecter'}
