@@ -78,7 +78,7 @@ export default function WorkspacesPage() {
   const isAdmin = session?.user?.isGlobalAdmin;
 
   return (
-    <main style={{ minHeight: '100vh', backgroundColor: G, color: CREAM, fontFamily: 'Inter, sans-serif', padding: '40px 32px' }}>
+    <main style={{ height: '100vh', overflowY: 'auto', backgroundColor: G, color: CREAM, fontFamily: 'Inter, sans-serif', padding: '40px 32px' }}>
       <div style={{ maxWidth: 800, margin: '0 auto' }}>
 
         {/* Header */}

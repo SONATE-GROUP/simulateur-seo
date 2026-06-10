@@ -143,7 +143,7 @@ export default function RapportsPage() {
     : '1fr 1fr 140px 48px 130px 150px 100px 80px';
 
   return (
-    <main style={{ minHeight: '100vh', backgroundColor: G, color: CREAM, fontFamily: "'Inter', sans-serif", padding: '40px 32px' }}>
+    <main style={{ height: '100vh', overflowY: 'auto', backgroundColor: G, color: CREAM, fontFamily: "'Inter', sans-serif", padding: '40px 32px' }}>
       <div style={{ maxWidth: 1080, margin: '0 auto' }}>
 
         {/* Header */}

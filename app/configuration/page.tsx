@@ -132,7 +132,7 @@ export default function ConfigurationPage() {
   }
 
   return (
-    <main style={{ minHeight: '100vh', backgroundColor: G, color: CREAM, fontFamily: "'Inter', sans-serif", padding: '40px 32px' }}>
+    <main style={{ height: '100vh', overflowY: 'auto', backgroundColor: G, color: CREAM, fontFamily: "'Inter', sans-serif", padding: '40px 32px' }}>
       <div style={{ maxWidth: 1000, margin: '0 auto' }}>
 
         {/* Header */}
