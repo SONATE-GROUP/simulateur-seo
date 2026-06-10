@@ -237,9 +237,9 @@ position     = clamp(round(posRaw), 1, 11)`}
             ))}
           </div>
           <div style={{ marginTop: 14, fontSize: 12, color: MUTED }}>
-            Le CTR effectif est multiplié par le ratio budgétaire (0–100%) saisi dans le simulateur :
+            Le trafic mensuel par mot-clé est calculé ainsi :
             <code style={{ backgroundColor: G5, padding: '2px 6px', borderRadius: 4, marginLeft: 6, fontFamily: 'monospace' }}>
-              CTR effectif = CTR tableau × (ratioBudget / 100)
+              trafic = volume × (CTR tableau × ratioBudget / 100)
             </code>
           </div>
         </SectionCard>
