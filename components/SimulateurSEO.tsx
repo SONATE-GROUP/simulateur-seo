@@ -998,7 +998,7 @@ export default function SimulateurSEO() {
             {saveState === 'saving' ? '…' : saveState === 'saved' ? '✓ Enregistré !' : saveState === 'error' ? '✗ Erreur' : reportId ? '💾 Sauvegarder' : '💾 Enregistrer'}
           </button>
           <a
-            href="/rapports"
+            href="/admin/rapports"
             style={{
               backgroundColor: 'transparent', border: `1px solid ${G3}`,
               borderRadius: 6, padding: '7px 14px', color: G2,
@@ -1019,7 +1019,7 @@ export default function SimulateurSEO() {
             ↓ Exporter PDF
           </button>
           <a
-            href="/workspaces"
+            href="/admin/workspaces"
             style={{
               backgroundColor: 'transparent', border: `1px solid ${G3}`,
               borderRadius: 6, padding: '7px 12px', color: G2,
