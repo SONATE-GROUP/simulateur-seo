@@ -1152,51 +1152,55 @@ export default function SimulateurSEO() {
                   {/* Category header */}
                   <div
                     onClick={() => toggleCat(cat.id)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', backgroundColor: isOpen ? '#f0ece4' : '#f7f5f0', cursor: 'pointer', userSelect: 'none' }}
+                    style={{ display: 'flex', flexDirection: 'column', gap: 7, padding: '8px 10px', backgroundColor: isOpen ? '#f0ece4' : '#f7f5f0', cursor: 'pointer', userSelect: 'none' }}
                   >
-                    <span style={{ fontSize: 10, color: L_MED, width: 12 }}>{isOpen ? '▼' : '▶'}</span>
-                    <input
-                      value={cat.name}
-                      onClick={e => e.stopPropagation()}
-                      onChange={e => renameCategory(cat.id, e.target.value)}
-                      style={{ flex: '1 1 110px', minWidth: 0, border: 'none', background: 'transparent', color: L_DARK, fontWeight: 700, fontSize: 12, outline: 'none', cursor: 'text' }}
-                    />
-                    <button
-                      onClick={e => { e.stopPropagation(); removeCategory(cat.id); }}
-                      aria-label={`Supprimer la catégorie ${cat.name || 'sans nom'}`}
-                      title="Supprimer la catégorie"
-                      style={{ background: '#fff6f3', border: `1px solid ${ORANGE}`, borderRadius: 4, color: ORANGE, cursor: 'pointer', padding: '2px 6px', lineHeight: 1.1, fontSize: 10, fontWeight: 800, flexShrink: 0, whiteSpace: 'nowrap' }}
-                    >Suppr.</button>
-                    <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-                      <NumInput
-                        value={catKws.length} min={0}
-                        onChange={target => {
-                          const diff = target - catKws.length;
-                          if (diff > 0) {
-                            const newKws = Array.from({ length: diff }, () => ({ id: uid(), keyword: '', volume: 1000, difficulty: 30, proximity: 1 as Proximity, intention: 1 as Intention, topic: '', categoryId: cat.id }));
-                            setState(s => ({ ...s, keywords: [...s.keywords, ...newKws] }));
-                          } else if (diff < 0) {
-                            const toRemove = new Set(catKws.slice(diff).map(k => k.id));
-                            setState(s => ({ ...s, keywords: s.keywords.filter(k => !toRemove.has(k.id)) }));
-                          }
-                        }}
-                        style={{ width: 38, backgroundColor: L_INPUT, border: `1px solid ${L_BORD}`, borderRadius: 3, color: L_DARK, fontSize: 11, padding: '2px 4px', textAlign: 'center', outline: 'none' }}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                      <span style={{ fontSize: 10, color: L_MED, width: 12, flexShrink: 0 }}>{isOpen ? '▼' : '▶'}</span>
+                      <input
+                        value={cat.name}
+                        onClick={e => e.stopPropagation()}
+                        onChange={e => renameCategory(cat.id, e.target.value)}
+                        style={{ flex: 1, minWidth: 0, border: 'none', background: 'transparent', color: L_DARK, fontWeight: 700, fontSize: 12, outline: 'none', cursor: 'text' }}
                       />
-                      <span style={{ fontSize: 10, color: L_MED }}>mots-clés</span>
+                    </div>
+                    <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <NumInput
+                          value={catKws.length} min={0}
+                          onChange={target => {
+                            const diff = target - catKws.length;
+                            if (diff > 0) {
+                              const newKws = Array.from({ length: diff }, () => ({ id: uid(), keyword: '', volume: 1000, difficulty: 30, proximity: 1 as Proximity, intention: 1 as Intention, topic: '', categoryId: cat.id }));
+                              setState(s => ({ ...s, keywords: [...s.keywords, ...newKws] }));
+                            } else if (diff < 0) {
+                              const toRemove = new Set(catKws.slice(diff).map(k => k.id));
+                              setState(s => ({ ...s, keywords: s.keywords.filter(k => !toRemove.has(k.id)) }));
+                            }
+                          }}
+                          style={{ width: 38, backgroundColor: L_INPUT, border: `1px solid ${L_BORD}`, borderRadius: 3, color: L_DARK, fontSize: 11, padding: '2px 4px', textAlign: 'center', outline: 'none' }}
+                        />
+                        <span style={{ fontSize: 10, color: L_MED }}>mots-clés</span>
+                      </div>
                       <select
                         value={cat.coeff ?? 1}
                         onClick={e => e.stopPropagation()}
                         onChange={e => updateCategoryCoeff(cat.id, Number(e.target.value) as 1 | 2 | 5 | 10 | 20)}
-                        style={{ marginLeft: 6, fontSize: 10, border: `1px solid ${L_BORD}`, borderRadius: 3, padding: '2px 4px', background: L_INPUT, color: (cat.coeff ?? 1) > 1 ? ORANGE : L_DARK, fontWeight: (cat.coeff ?? 1) > 1 ? 700 : 400, cursor: 'pointer', outline: 'none' }}
+                        style={{ fontSize: 10, border: `1px solid ${L_BORD}`, borderRadius: 3, padding: '2px 4px', background: L_INPUT, color: (cat.coeff ?? 1) > 1 ? ORANGE : L_DARK, fontWeight: (cat.coeff ?? 1) > 1 ? 700 : 400, cursor: 'pointer', outline: 'none' }}
                         title="Coefficient multiplicateur de sortie"
                       >
                         {[1, 2, 5, 10, 20].map(v => <option key={v} value={v}>×{v}</option>)}
                       </select>
+                      <button
+                        onClick={e => { e.stopPropagation(); addKw(cat.id); }}
+                        style={{ background: ORANGE, border: 'none', borderRadius: 3, padding: '2px 7px', color: 'white', fontSize: 10, cursor: 'pointer', fontWeight: 700, whiteSpace: 'nowrap' }}
+                      >+ Ajouter</button>
+                      <button
+                        onClick={e => { e.stopPropagation(); removeCategory(cat.id); }}
+                        aria-label={`Supprimer la catégorie ${cat.name || 'sans nom'}`}
+                        title="Supprimer la catégorie"
+                        style={{ background: '#fff6f3', border: `1px solid ${ORANGE}`, borderRadius: 4, color: ORANGE, cursor: 'pointer', padding: '2px 6px', lineHeight: 1.1, fontSize: 10, fontWeight: 800, whiteSpace: 'nowrap' }}
+                      >Suppr.</button>
                     </div>
-                    <button
-                      onClick={e => { e.stopPropagation(); addKw(cat.id); }}
-                      style={{ background: ORANGE, border: 'none', borderRadius: 3, padding: '2px 7px', color: 'white', fontSize: 10, cursor: 'pointer', fontWeight: 700, whiteSpace: 'nowrap' }}
-                    >+ Ajouter</button>
                   </div>
 
                   {/* Keywords table */}
