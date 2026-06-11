@@ -1154,16 +1154,17 @@ export default function SimulateurSEO() {
                     onClick={() => toggleCat(cat.id)}
                     style={{ display: 'flex', flexDirection: 'column', gap: 7, padding: '8px 10px', backgroundColor: isOpen ? '#f0ece4' : '#f7f5f0', cursor: 'pointer', userSelect: 'none' }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                      <span style={{ fontSize: 10, color: L_MED, width: 12, flexShrink: 0 }}>{isOpen ? '▼' : '▶'}</span>
-                      <input
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, minWidth: 0, width: '100%' }}>
+                      <span style={{ fontSize: 10, color: L_MED, width: 12, flexShrink: 0, paddingTop: 3 }}>{isOpen ? '▼' : '▶'}</span>
+                      <textarea
                         value={cat.name}
+                        rows={Math.max(1, Math.ceil((cat.name || 'Nouvelle catégorie').length / 28))}
                         onClick={e => e.stopPropagation()}
-                        onChange={e => renameCategory(cat.id, e.target.value)}
-                        style={{ flex: 1, minWidth: 0, border: 'none', background: 'transparent', color: L_DARK, fontWeight: 700, fontSize: 12, outline: 'none', cursor: 'text' }}
+                        onChange={e => renameCategory(cat.id, e.target.value.replace(/\n/g, ' '))}
+                        style={{ width: '100%', minWidth: 0, border: 'none', background: 'transparent', color: L_DARK, fontWeight: 700, fontSize: 13, lineHeight: 1.25, outline: 'none', cursor: 'text', resize: 'none', overflow: 'hidden', padding: 0 }}
                       />
                     </div>
-                    <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
+                    <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 8, flexWrap: 'wrap', paddingLeft: 20 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                         <NumInput
                           value={catKws.length} min={0}
