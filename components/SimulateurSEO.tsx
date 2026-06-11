@@ -545,22 +545,73 @@ export default function SimulateurSEO() {
   /* Helpers */
   const update = (patch: Partial<SimState>) => setState(s => ({ ...s, ...patch }));
 
-  const addKw = (catId: string) => setState(s => ({
-    ...s,
-    keywords: [...s.keywords, { id: uid(), keyword: '', volume: 1000, difficulty: 30, proximity: 1, intention: 1, topic: '', categoryId: catId }],
-  }));
+  const addKw = (catId: string) => {
+    setState(s => ({
+      ...s,
+      keywords: [...s.keywords, { id: uid(), keyword: '', volume: 1000, difficulty: 30, proximity: 1, intention: 1, topic: '', categoryId: catId }],
+    }));
+    setOpenCats(prev => { const n = new Set(prev); n.add(catId); return n; });
+  };
 
   const removeKw = (id: string) => setState(s => ({ ...s, keywords: s.keywords.filter(k => k.id !== id) }));
 
   /* ── EXCEL IMPORT ─────────────────────────────────────────── */
   const INTENT_MAP: Record<string, Intention> = {
-    transactionnel: 1, '1': 1,
-    'pré-achat': 2, 'pre-achat': 2, preachat: 2, '2': 2,
-    intermédiaire: 3, intermediaire: 3, commerciale: 3, '3': 3,
-    informationnel: 4, '4': 4,
+    transactionnel: 1, transactional: 1, achat: 1, '1': 1,
+    'pré-achat': 2, 'pre-achat': 2, preachat: 2, consideration: 2, '2': 2,
+    intermédiaire: 3, intermediaire: 3, commerciale: 3, commercial: 3, '3': 3,
+    informationnel: 4, informational: 4, information: 4, info: 4, '4': 4,
+  };
+  const PROXIMITY_MAP: Record<string, Proximity> = {
+    exact: 1, 'sujet exact': 1, 'mot cle exact': 1, '1': 1,
+    proche: 2, 'tres proche': 2, 'très proche': 2, near: 2, '2': 2,
+    thematique: 3, thématique: 3, thematic: 3, large: 3, '3': 3,
   };
   const normalize = (s: string) =>
     s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+
+  const parseLocalizedNumber = (value: unknown, fallback = 0): number => {
+    if (typeof value === 'number') return Number.isFinite(value) ? value : fallback;
+    let raw = String(value ?? '').trim();
+    if (!raw) return fallback;
+
+    raw = raw.toLowerCase();
+    const rangeParts = raw.split(/\s*[-–—]\s*/).filter(Boolean);
+    if (rangeParts.length === 2) {
+      const [minRange, maxRange] = rangeParts.map(part => parseLocalizedNumber(part, fallback));
+      return (minRange + maxRange) / 2;
+    }
+
+    raw = raw
+      .replace(/[  \s]/g, '')
+      .replace(/€/g, '')
+      .replace(/%/g, '');
+
+    let multiplier = 1;
+    if (raw.endsWith('k')) { multiplier = 1_000; raw = raw.slice(0, -1); }
+    if (raw.endsWith('m')) { multiplier = 1_000_000; raw = raw.slice(0, -1); }
+
+    const comma = raw.lastIndexOf(',');
+    const dot = raw.lastIndexOf('.');
+    if (comma !== -1 && dot !== -1) {
+      raw = comma > dot ? raw.replace(/\./g, '').replace(',', '.') : raw.replace(/,/g, '');
+    } else if (comma !== -1) {
+      const parts = raw.split(',');
+      raw = parts.length > 1 && parts.at(-1)?.length === 3 ? raw.replace(/,/g, '') : raw.replace(',', '.');
+    } else if (dot !== -1) {
+      const parts = raw.split('.');
+      raw = parts.length > 1 && parts.slice(1).every(part => part.length === 3) ? raw.replace(/\./g, '') : raw;
+    }
+
+    const parsed = Number(raw.replace(/[^0-9.-]/g, ''));
+    return Number.isFinite(parsed) ? parsed * multiplier : fallback;
+  };
+
+  const parseProximity = (value: unknown): Proximity => {
+    const normalized = normalize(String(value ?? ''));
+    const numeric = Math.round(parseLocalizedNumber(value, 1));
+    return PROXIMITY_MAP[normalized] ?? (Math.min(3, Math.max(1, numeric)) as Proximity);
+  };
 
   const importExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -574,14 +625,15 @@ export default function SimulateurSEO() {
       const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' });
       if (!raw.length) return;
 
-      // Map header keys → normalized
+      // Map header keys → normalized, so imported files can use accents,
+      // English labels, exports from SEO tools, or custom casing/spaces.
       const headerMap: Record<string, string> = {};
       Object.keys(raw[0]).forEach(h => { headerMap[normalize(h)] = h; });
 
       const col = (row: Record<string, unknown>, ...aliases: string[]) => {
         for (const a of aliases) {
-          const key = headerMap[a];
-          if (key !== undefined) return String(row[key] ?? '');
+          const key = headerMap[normalize(a)];
+          if (key !== undefined) return row[key];
         }
         return '';
       };
@@ -591,18 +643,17 @@ export default function SimulateurSEO() {
       const catNameToId: Record<string, string> = {};
 
       const newKws: Keyword[] = raw.map(row => {
-        const intentRaw    = normalize(col(row, 'intention', 'intent'));
-        const proximityRaw = Number(col(row, 'proximite', 'proximity', 'prox')) || 1;
-        const catLabel     = col(row, 'categorie', 'catégorie', 'category', 'cat').trim() || fallbackCatName;
+        const intentRaw = normalize(String(col(row, 'intention', 'intent', 'search intent') ?? ''));
+        const catLabel = String(col(row, 'categorie', 'catégorie', 'category', 'cat', 'groupe', 'cluster') || fallbackCatName).trim();
         if (!catNameToId[catLabel]) catNameToId[catLabel] = uid();
         return {
           id:         uid(),
-          keyword:    col(row, 'mot cle', 'mot-cle', 'keyword', 'kw', 'requete', 'requête'),
-          volume:     Math.max(0, Number(col(row, 'volume', 'vol', 'volume mensuel')) || 0),
-          difficulty: Math.min(100, Math.max(0, Number(col(row, 'difficulte', 'difficulty', 'diff', 'kd')) || 30)),
-          proximity:  (Math.min(3, Math.max(1, proximityRaw)) as Proximity),
+          keyword:    String(col(row, 'mot cle', 'mot-clé', 'mot-cle', 'keyword', 'kw', 'requete', 'requête', 'query', 'terme') ?? '').trim(),
+          volume:     Math.max(0, Math.round(parseLocalizedNumber(col(row, 'volume', 'vol', 'volume mensuel', 'volume de recherche', 'search volume', 'monthly volume', 'avg. monthly searches', 'recherches mensuelles'), 0))),
+          difficulty: Math.min(100, Math.max(0, Math.round(parseLocalizedNumber(col(row, 'difficulte', 'difficulté', 'difficulty', 'diff', 'kd', 'kd %', 'seo difficulty', 'keyword difficulty'), 30)))),
+          proximity:  parseProximity(col(row, 'proximite', 'proximité', 'proximity', 'prox')),
           intention:  (INTENT_MAP[intentRaw] ?? 1) as Intention,
-          topic:      col(row, 'sujet', 'topic', 'theme', 'thème'),
+          topic:      String(col(row, 'sujet', 'topic', 'theme', 'thème', 'cluster', 'page') ?? '').trim(),
           categoryId: catNameToId[catLabel],
         };
       }).filter(k => k.keyword);
@@ -649,16 +700,14 @@ export default function SimulateurSEO() {
   const updateCategoryCoeff = (catId: string, coeff: 1 | 2 | 5 | 10 | 20) =>
     setState(s => ({ ...s, categories: s.categories.map(c => c.id === catId ? { ...c, coeff } : c) }));
 
-  const removeCategory = (catId: string) => setState(s => {
-    const fallback = s.categories.find(c => c.id !== catId)?.id ?? null;
-    return {
+  const removeCategory = (catId: string) => {
+    setState(s => ({
       ...s,
       categories: s.categories.filter(c => c.id !== catId),
-      keywords: fallback
-        ? s.keywords.map(k => k.categoryId === catId ? { ...k, categoryId: fallback } : k)
-        : s.keywords.filter(k => k.categoryId !== catId),
-    };
-  });
+      keywords: s.keywords.filter(k => k.categoryId !== catId),
+    }));
+    setOpenCats(prev => { const n = new Set(prev); n.delete(catId); return n; });
+  };
 
   const renameCategory = (catId: string, name: string) => setState(s => ({
     ...s, categories: s.categories.map(c => c.id === catId ? { ...c, name } : c),
@@ -1139,7 +1188,7 @@ export default function SimulateurSEO() {
                       </select>
                     </div>
                     <button
-                      onClick={e => { e.stopPropagation(); addKw(cat.id); if (!isOpen) toggleCat(cat.id); }}
+                      onClick={e => { e.stopPropagation(); addKw(cat.id); }}
                       style={{ background: ORANGE, border: 'none', borderRadius: 3, padding: '2px 7px', color: 'white', fontSize: 10, cursor: 'pointer', fontWeight: 700, whiteSpace: 'nowrap' }}
                     >+ Ajouter</button>
                     <button
@@ -1161,7 +1210,11 @@ export default function SimulateurSEO() {
                     <div style={{ overflowX: 'auto', padding: '4px 10px 8px' }}>
                       {catKws.length === 0 ? (
                         <div style={{ color: L_MED, fontSize: 11, padding: '8px 0', textAlign: 'center' }}>
-                          Aucun mot-clé — cliquez sur "+ Ajouter"
+                          Aucun mot-clé — cliquez sur "+ Ajouter" ou{' '}
+                          <button
+                            onClick={() => addKw(cat.id)}
+                            style={{ background: 'none', border: 'none', color: ORANGE, cursor: 'pointer', fontSize: 11, fontWeight: 700, padding: 0, textDecoration: 'underline' }}
+                          >ajoutez une ligne ici</button>
                         </div>
                       ) : (
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
