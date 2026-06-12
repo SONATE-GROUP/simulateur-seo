@@ -1117,7 +1117,7 @@ export default function SimulateurSEO() {
               onChange={v => update({ healthScore: v })} />
             <div>
               <div style={{ color: L_MED, fontSize: 12, marginBottom: 6 }}>
-                Panier moyen / Valeur d'un lead
+                {businessType === 'ecommerce' ? 'Panier moyen' : 'Valeur d\'un lead'}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <NumInput
@@ -1621,7 +1621,7 @@ export default function SimulateurSEO() {
           {/* BLOC 2 — SECONDARY KPIs */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 14 }}>
             <KPICard label="Trafic organique / mois" value={fmtN(totals.totalTraffic)} />
-            <KPICard label="Leads / mois (à 12 mois)" value={fmtLeads(totals.totalLeads)} />
+            <KPICard label={businessType === 'ecommerce' ? 'CPA' : 'Leads / mois (à 12 mois)'} value={businessType === 'ecommerce' && totals.budgetMensuel > 0 && totals.totalLeads > 0 ? fmtC(Math.round(totals.budgetMensuel / totals.totalLeads)) : fmtLeads(totals.totalLeads)} />
             <KPICard label="Sujets clés à traiter" value={`${totals.nbPages}`} />
             <KPICard label="Budget mensuel" value={fmtC(totals.budgetMensuel)} accent />
           </div>
@@ -1697,9 +1697,9 @@ export default function SimulateurSEO() {
             {/* CPL summary */}
             <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
               {([
-                { label: 'CPL an 1', value: cpl.an1 },
-                { label: 'CPL an 2', value: cpl.an2 },
-                { label: 'CPL an 3', value: cpl.an3 },
+                { label: `${businessType === 'ecommerce' ? 'CPA' : 'CPL'} an 1`, value: cpl.an1 },
+                { label: `${businessType === 'ecommerce' ? 'CPA' : 'CPL'} an 2`, value: cpl.an2 },
+                { label: `${businessType === 'ecommerce' ? 'CPA' : 'CPL'} an 3`, value: cpl.an3 },
               ] as { label: string; value: number }[]).map(({ label, value }) => (
                 <div key={label} style={{ flex: 1, minWidth: 80, background: G5, borderRadius: 8, padding: '8px 12px', textAlign: 'center' }}>
                   <div style={{ color: '#5a7a6a', fontSize: 10, marginBottom: 2 }}>{label}</div>
@@ -1756,7 +1756,7 @@ export default function SimulateurSEO() {
           {/* BLOC 4b — LEADS PAR MOIS */}
           <div style={{ marginBottom: 14 }}>
             <div style={{ ...secTitle, marginBottom: 10 }}>
-              <span style={{ color: ORANGE, fontSize: 10 }}>◆</span> Leads captés par mois — 12 mois
+              <span style={{ color: ORANGE, fontSize: 10 }}>◆</span> {businessType === 'ecommerce' ? 'Ventes par mois' : 'Leads captés par mois'} — 12 mois
             </div>
             <ResponsiveContainer width="100%" height={220}>
               <ComposedChart data={monthlyData} margin={{ top: 8, right: 48, left: 0, bottom: 4 }}>
@@ -1771,14 +1771,14 @@ export default function SimulateurSEO() {
                     <div style={{ background: G2, border: `1px solid ${G3}`, borderRadius: 8, padding: '8px 12px', fontSize: 12 }}>
                       <div style={{ color: CREAM, fontWeight: 700, marginBottom: 4 }}>{label}</div>
                       {payload.map((p, idx) => p.dataKey === 'leads'
-                        ? <div key={idx} style={{ color: ORANGE }}>{p.value} lead{Number(p.value) > 1 ? 's' : ''}</div>
-                        : p.value != null ? <div key={idx} style={{ color: '#a8c5b5' }}>CPL : {p.value} €</div> : null
+                        ? <div key={idx} style={{ color: ORANGE }}>{p.value} {businessType === 'ecommerce' ? `vente${Number(p.value) > 1 ? 's' : ''}` : `lead${Number(p.value) > 1 ? 's' : ''}`}</div>
+                        : p.value != null ? <div key={idx} style={{ color: '#a8c5b5' }}>{businessType === 'ecommerce' ? 'CPA' : 'CPL'} : {p.value} €</div> : null
                       )}
                     </div>
                   ) : null}
                 />
-                <Bar yAxisId="leads" dataKey="leads" fill={ORANGE} radius={[4, 4, 0, 0]} maxBarSize={36} name="Leads" />
-                <Line yAxisId="cpl" dataKey="cplMonth" stroke="#a8c5b5" strokeWidth={2} dot={false} name="CPL" connectNulls={false} />
+                <Bar yAxisId="leads" dataKey="leads" fill={ORANGE} radius={[4, 4, 0, 0]} maxBarSize={36} name={businessType === 'ecommerce' ? 'Ventes' : 'Leads'} />
+                <Line yAxisId="cpl" dataKey="cplMonth" stroke="#a8c5b5" strokeWidth={2} dot={false} name={businessType === 'ecommerce' ? 'CPA' : 'CPL'} connectNulls={false} />
                 {breakEvenMonth && (
                   <ReferenceLine yAxisId="leads" x={breakEvenMonth} stroke={ORANGE} strokeDasharray="4 4" strokeWidth={1.5}
                     label={{ value: 'Break-even', fill: ORANGE, fontSize: 10, position: 'insideTopRight' }} />
@@ -1846,7 +1846,7 @@ export default function SimulateurSEO() {
                       { label: 'Position',         align: 'center' },
                       { label: 'CTR',              align: 'center' },
                       { label: 'Trafic / mois',    align: 'right'  },
-                      { label: 'Leads / mois',     align: 'right'  },
+                      { label: businessType === 'ecommerce' ? 'Ventes / mois' : 'Leads / mois', align: 'right' },
                       { label: 'CA / mois',        align: 'right'  },
                       { label: 'Intention',        align: 'center' },
                     ].map(({ label, align }) => (
@@ -1930,7 +1930,7 @@ export default function SimulateurSEO() {
                 {([
                   ['Domain Authority (DA)', `${da}`],
                   ['Score Santé Semrush', `${healthScore} → coeff. ${coeffSante}`],
-                  ['Panier moyen / Lead', fmtC(basketValue)],
+                  [businessType === 'ecommerce' ? 'Panier moyen' : 'Panier moyen / Lead', fmtC(basketValue)],
                   ['Ratio budget alloué', `${budgetRatio}%`],
                   ['Budget mensuel total', fmtC(totals.budgetMensuel)],
                   ['Nombre de pages', `${totals.nbPages}`],
