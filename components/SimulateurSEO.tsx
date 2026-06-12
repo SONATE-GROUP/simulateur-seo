@@ -1834,7 +1834,6 @@ export default function SimulateurSEO() {
                   ['Panier moyen / Lead', fmtC(basketValue)],
                   ['Ratio budget alloué', `${budgetRatio}%`],
                   ['Budget mensuel total', fmtC(totals.budgetMensuel)],
-                  ...categories.map(c => [`Budget ${c.name}`, fmtC(c.budget ?? 700)] as [string, string]),
                   ['Nombre de pages', `${totals.nbPages}`],
                 ] as [string, string][]).map(([label, value]) => (
                   <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: `1px solid ${G3}` }}>
