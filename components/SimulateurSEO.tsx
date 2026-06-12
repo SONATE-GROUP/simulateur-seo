@@ -52,6 +52,7 @@ interface SimState {
   tauxRdv: number;
   tauxClosing: number;
   categories: Category[];
+  budgetCatsHidden: boolean;
 }
 
 /* ─── CONSTANTS ──────────────────────────────────────────────── */
@@ -108,6 +109,7 @@ const INITIAL: SimState = {
   tauxRdv: 60,
   tauxClosing: 30,
   categories: [],
+  budgetCatsHidden: false,
 };
 
 /* ─── PALETTE ────────────────────────────────────────────────── */
@@ -384,7 +386,7 @@ export default function SimulateurSEO() {
     crTransactionnel, crPreAchat, crIntermediaire, crInformationnel,
     budgetRatio,
     seasonalityEnabled, startMonth, highSeasonMonths, highSeasonMultiplier,
-    kwMultiplier, businessType, tauxRdv, tauxClosing, categories,
+    kwMultiplier, businessType, tauxRdv, tauxClosing, categories, budgetCatsHidden,
   } = state;
 
   const cr: Record<Intention, number> = {
@@ -1303,8 +1305,15 @@ export default function SimulateurSEO() {
 
           {/* BUDGET */}
           <div style={cardLight}>
-            <div style={secTitleLight}>
+            <div style={{ ...secTitleLight, marginBottom: 10 }}>
               <span style={{ color: ORANGE, fontSize: 10 }}>◆</span> Accompagnement SEO/GEO
+              <button
+                onClick={() => update({ budgetCatsHidden: !state.budgetCatsHidden })}
+                title={state.budgetCatsHidden ? 'Afficher les thématiques' : 'Masquer les thématiques'}
+                style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: L_MED, fontSize: 11, padding: '2px 4px' }}
+              >
+                {state.budgetCatsHidden ? '▶ détail' : '▲ masquer'}
+              </button>
             </div>
             {categories.length === 0 ? (
               <div style={{ color: L_SOFT, fontSize: 12, textAlign: 'center', padding: '8px 0' }}>
@@ -1313,6 +1322,7 @@ export default function SimulateurSEO() {
             ) : (
               <>
                 {/* Barre de sélection / application en masse */}
+                {!budgetCatsHidden && (<>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                   <input
                     type="checkbox"
@@ -1392,7 +1402,8 @@ export default function SimulateurSEO() {
                     </div>
                   );
                 })}
-                <div style={{ borderTop: `1px solid ${L_BORD}`, marginTop: 4, paddingTop: 8 }}>
+                </>)}
+                <div style={{ borderTop: budgetCatsHidden ? 'none' : `1px solid ${L_BORD}`, marginTop: budgetCatsHidden ? 0 : 4, paddingTop: budgetCatsHidden ? 0 : 8 }}>
                   <Slider
                     light
                     label="Total mensuel"
