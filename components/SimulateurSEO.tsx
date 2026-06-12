@@ -1319,53 +1319,38 @@ export default function SimulateurSEO() {
                     id="select-all-cats"
                     checked={selectedCatIds.size === categories.length && categories.length > 0}
                     ref={el => { if (el) el.indeterminate = selectedCatIds.size > 0 && selectedCatIds.size < categories.length; }}
-                    onChange={e => setSelectedCatIds(e.target.checked ? new Set(categories.map(c => c.id)) : new Set())}
+                    onChange={e => {
+                      if (e.target.checked) {
+                        setSelectedCatIds(new Set(categories.map(c => c.id)));
+                        const avg = Math.round(categories.reduce((s, c) => s + (c.budget ?? 700), 0) / categories.length / 100) * 100;
+                        setBulkBudget(String(avg));
+                      } else {
+                        setSelectedCatIds(new Set());
+                        setBulkBudget('');
+                      }
+                    }}
                     style={{ cursor: 'pointer', accentColor: ORANGE }}
                   />
                   <label htmlFor="select-all-cats" style={{ fontSize: 11, color: L_MED, cursor: 'pointer', userSelect: 'none' }}>
                     {selectedCatIds.size === 0 ? 'Tout sélectionner' : `${selectedCatIds.size} sélectionné${selectedCatIds.size > 1 ? 's' : ''}`}
                   </label>
                   {selectedCatIds.size > 0 && (
-                    <>
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, marginLeft: 8 }}>
                       <input
-                        type="number"
+                        type="range"
                         min={0} max={5000} step={100}
-                        placeholder="Budget €"
-                        value={bulkBudget}
-                        onChange={e => setBulkBudget(e.target.value)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') {
-                            const v = Math.min(5000, Math.max(0, Number(bulkBudget)));
-                            if (!isNaN(v)) {
-                              selectedCatIds.forEach(id => updateCategoryBudget(id, v));
-                              setBulkBudget('');
-                              setSelectedCatIds(new Set());
-                            }
-                          }
+                        value={bulkBudget === '' ? 0 : Number(bulkBudget)}
+                        onChange={e => {
+                          const v = Number(e.target.value);
+                          setBulkBudget(String(v));
+                          selectedCatIds.forEach(id => updateCategoryBudget(id, v));
                         }}
-                        style={{
-                          marginLeft: 'auto', width: 90, fontSize: 12, padding: '3px 6px',
-                          border: `1px solid ${L_BORD}`, borderRadius: 6, outline: 'none',
-                          background: 'white', color: '#222',
-                        }}
+                        style={{ flex: 1, accentColor: ORANGE, cursor: 'pointer' }}
                       />
-                      <button
-                        onClick={() => {
-                          const v = Math.min(5000, Math.max(0, Number(bulkBudget)));
-                          if (!isNaN(v) && bulkBudget !== '') {
-                            selectedCatIds.forEach(id => updateCategoryBudget(id, v));
-                            setBulkBudget('');
-                            setSelectedCatIds(new Set());
-                          }
-                        }}
-                        style={{
-                          fontSize: 11, padding: '3px 8px', borderRadius: 6, cursor: 'pointer',
-                          background: ORANGE, color: 'white', border: 'none', fontWeight: 600,
-                        }}
-                      >
-                        Appliquer
-                      </button>
-                    </>
+                      <span style={{ fontSize: 12, color: ORANGE, fontWeight: 700, minWidth: 48, textAlign: 'right' }}>
+                        {bulkBudget === '' ? '–' : `${Number(bulkBudget).toLocaleString('fr-FR')} €`}
+                      </span>
+                    </div>
                   )}
                 </div>
 
@@ -1382,7 +1367,13 @@ export default function SimulateurSEO() {
                         onChange={e => {
                           setSelectedCatIds(prev => {
                             const next = new Set(prev);
-                            e.target.checked ? next.add(cat.id) : next.delete(cat.id);
+                            if (e.target.checked) {
+                              next.add(cat.id);
+                              if (prev.size === 0) setBulkBudget(String(cat.budget ?? 700));
+                            } else {
+                              next.delete(cat.id);
+                              if (next.size === 0) setBulkBudget('');
+                            }
                             return next;
                           });
                         }}
