@@ -216,16 +216,16 @@ const inputLight: CSSProperties = {
 
 /* ─── SLIDER ─────────────────────────────────────────────────── */
 function Slider({
-  label, value, min, max, step = 1, unit = '', onChange, hint, light = false,
+  label, value, min, max, step = 1, unit = '', onChange, hint, light = false, bold = false,
 }: {
   label: string; value: number; min: number; max: number;
-  step?: number; unit?: string; onChange: (v: number) => void; hint?: string; light?: boolean;
+  step?: number; unit?: string; onChange: (v: number) => void; hint?: string; light?: boolean; bold?: boolean;
 }) {
   return (
     <div style={{ marginBottom: 14 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-        <span style={{ color: light ? L_MED : '#a8c5b5', fontSize: 12 }}>{label}</span>
-        <span style={{ color: ORANGE, fontWeight: 700, fontSize: 15 }}>{value}{unit}</span>
+        <span style={{ color: light ? L_MED : '#a8c5b5', fontSize: bold ? 14 : 12, fontWeight: bold ? 700 : 400 }}>{label}</span>
+        <span style={{ color: ORANGE, fontWeight: 700, fontSize: bold ? 18 : 15 }}>{value}{unit}</span>
       </div>
       {hint && <div style={{ color: light ? L_MED : '#7a9e8e', fontSize: 11, marginBottom: 4 }}>{hint}</div>}
       <input
@@ -1402,6 +1402,7 @@ export default function SimulateurSEO() {
                     step={100}
                     unit="€"
                     hint="Répartition proportionnelle entre les thématiques"
+                    bold
                     onChange={targetTotal => {
                       if (categories.length === 0) return;
                       const rawSum = categories.reduce((s, c) => s + (c.budget ?? 700), 0);
