@@ -1922,32 +1922,77 @@ export default function SimulateurSEO() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 28px' }}>
 
-              {/* Colonne gauche : données site + budget */}
+              {/* Colonne gauche : données site + budget + mots-clés + saisonnalité */}
               <div>
-                <div style={{ color: '#5a7a6a', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
-                  Données du site &amp; Budget
+
+                {/* Site & scores */}
+                <div style={{ color: '#5a7a6a', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
+                  Données du site
                 </div>
                 {([
-                  ['Domain Authority (DA)', `${da}`],
-                  ['Score Santé Semrush', `${healthScore} → coeff. ${coeffSante}`],
-                  [businessType === 'ecommerce' ? 'Panier moyen' : 'Panier moyen / Lead', fmtC(basketValue)],
-                  ['Ratio budget alloué', `${budgetRatio}%`],
-                  ['Budget mensuel total', fmtC(totals.budgetMensuel)],
-                  ['Nombre de pages', `${totals.nbPages}`],
+                  ['Autorité du domaine (DA)', `${da} / 100`],
+                  ['Score de vitalité Semrush', `${healthScore} / 100 → coeff. ${coeffSante}`],
+                  [businessType === 'ecommerce' ? 'Panier moyen' : 'Valeur d\'un lead', fmtC(basketValue)],
                 ] as [string, string][]).map(([label, value]) => (
-                  <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: `1px solid ${G3}` }}>
-                    <span style={{ color: '#7a9e8e', fontSize: 12 }}>{label}</span>
-                    <span style={{ color: CREAM, fontSize: 12, fontWeight: 600 }}>{value}</span>
+                  <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: `1px solid ${G3}` }}>
+                    <span style={{ color: '#7a9e8e', fontSize: 11 }}>{label}</span>
+                    <span style={{ color: CREAM, fontSize: 11, fontWeight: 600 }}>{value}</span>
                   </div>
                 ))}
+
+                {/* Budget par thématique */}
+                <div style={{ color: '#5a7a6a', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 12, marginBottom: 6 }}>
+                  Budget mensuel ({budgetRatio}% alloué)
+                </div>
+                {categories.map(cat => (
+                  <div key={cat.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: `1px solid ${G3}` }}>
+                    <span style={{ color: '#7a9e8e', fontSize: 11 }}>{cat.name}</span>
+                    <span style={{ color: CREAM, fontSize: 11, fontWeight: 600 }}>{fmtC(Math.round((cat.budget ?? 700) * (budgetRatio / 100)))}<span style={{ color: '#5a7a6a', fontWeight: 400 }}> /mois</span></span>
+                  </div>
+                ))}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', marginTop: 2 }}>
+                  <span style={{ color: ORANGE, fontSize: 12, fontWeight: 700 }}>Total mensuel</span>
+                  <span style={{ color: ORANGE, fontSize: 13, fontWeight: 700 }}>{fmtC(totals.budgetMensuel)}<span style={{ fontSize: 10, fontWeight: 400 }}> /mois</span></span>
+                </div>
+
+                {/* Mots-clés par thématique */}
+                <div style={{ color: '#5a7a6a', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 12, marginBottom: 6 }}>
+                  Mots-clés ({keywords.length} au total)
+                </div>
+                {categories.map(cat => {
+                  const catKws = keywords.filter(k => k.categoryId === cat.id);
+                  return (
+                    <div key={cat.id} style={{ marginBottom: 8 }}>
+                      <div style={{ color: ORANGE, fontSize: 11, fontWeight: 700, marginBottom: 3 }}>{cat.name} <span style={{ color: '#5a7a6a', fontWeight: 400 }}>({catKws.length})</span></div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px 6px' }}>
+                        {catKws.map(kw => (
+                          <span key={kw.id} style={{ color: '#a8c5b5', fontSize: 10, backgroundColor: G3, borderRadius: 3, padding: '1px 5px' }}>{kw.keyword}</span>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Saisonnalité */}
                 {seasonalityEnabled && (
-                  <div style={{ marginTop: 8, padding: '6px 10px', backgroundColor: `${ORANGE}22`, borderRadius: 5, display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: ORANGE, fontSize: 11 }}>Saisonnalité</span>
-                    <span style={{ color: ORANGE, fontSize: 11, fontWeight: 600 }}>
-                      ×{highSeasonMultiplier} · démarrage {MONTH_NAMES[startMonth]}
-                    </span>
+                  <div style={{ marginTop: 8, padding: '6px 10px', backgroundColor: `${ORANGE}22`, borderRadius: 5 }}>
+                    <div style={{ color: '#5a7a6a', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Saisonnalité</div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: ORANGE, fontSize: 11 }}>Multiplicateur haute saison</span>
+                      <span style={{ color: ORANGE, fontSize: 11, fontWeight: 600 }}>×{highSeasonMultiplier}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 2 }}>
+                      <span style={{ color: ORANGE, fontSize: 11 }}>Démarrage</span>
+                      <span style={{ color: ORANGE, fontSize: 11, fontWeight: 600 }}>{MONTH_NAMES[startMonth]}</span>
+                    </div>
+                    <div style={{ marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                      {MONTH_NAMES.map((m, i) => (
+                        <span key={i} style={{ fontSize: 10, padding: '1px 5px', borderRadius: 3, backgroundColor: highSeasonMonths[i] ? ORANGE : G3, color: highSeasonMonths[i] ? 'white' : '#5a7a6a' }}>{m.slice(0, 3)}</span>
+                      ))}
+                    </div>
                   </div>
                 )}
+
               </div>
 
               {/* Colonne droite : taux de conversion */}
