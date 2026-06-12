@@ -1392,9 +1392,31 @@ export default function SimulateurSEO() {
                     </div>
                   );
                 })}
-                <div style={{ borderTop: `1px solid ${L_BORD}`, marginTop: 4, paddingTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ color: L_MED, fontSize: 12 }}>Total mensuel</span>
-                  <span style={{ color: ORANGE, fontWeight: 700, fontSize: 15 }}>{fmtC(totals.budgetMensuel)}<span style={{ fontSize: 11, fontWeight: 400 }}> /mois</span></span>
+                <div style={{ borderTop: `1px solid ${L_BORD}`, marginTop: 4, paddingTop: 8 }}>
+                  <Slider
+                    light
+                    label="Total mensuel"
+                    value={Math.round(categories.reduce((s, c) => s + (c.budget ?? 700), 0) * (budgetRatio / 100))}
+                    min={0}
+                    max={Math.max(20000, Math.round(categories.reduce((s, c) => s + (c.budget ?? 700), 0) * (budgetRatio / 100) * 2 / 1000) * 1000)}
+                    step={100}
+                    unit="€"
+                    hint="Répartition proportionnelle entre les thématiques"
+                    onChange={targetTotal => {
+                      if (categories.length === 0) return;
+                      const rawSum = categories.reduce((s, c) => s + (c.budget ?? 700), 0);
+                      const targetRawSum = budgetRatio > 0 ? targetTotal / (budgetRatio / 100) : 0;
+                      if (rawSum === 0) {
+                        const equal = Math.round(targetRawSum / categories.length / 100) * 100;
+                        setState(s => ({ ...s, categories: s.categories.map(c => ({ ...c, budget: equal })) }));
+                      } else {
+                        setState(s => ({ ...s, categories: s.categories.map(c => ({
+                          ...c,
+                          budget: Math.round((c.budget ?? 700) / rawSum * targetRawSum / 100) * 100,
+                        })) }));
+                      }
+                    }}
+                  />
                 </div>
               </>
             )}
