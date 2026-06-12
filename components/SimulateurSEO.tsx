@@ -1576,7 +1576,7 @@ export default function SimulateurSEO() {
               border: `2px solid ${ORANGE}`,
             }}>
               <div style={{ color: '#7a9e8e', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>
-                CA Potentiel / An
+                CA Prévisionnel / An
               </div>
               <div style={{ color: ORANGE, fontSize: 40, fontWeight: 800, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
                 {fmtC(totals.totalCA * 12)}
@@ -1756,7 +1756,7 @@ export default function SimulateurSEO() {
           {/* BLOC 4b — LEADS PAR MOIS */}
           <div style={{ marginBottom: 14 }}>
             <div style={{ ...secTitle, marginBottom: 10 }}>
-              <span style={{ color: ORANGE, fontSize: 10 }}>◆</span> {businessType === 'ecommerce' ? 'Ventes par mois' : 'Leads captés par mois'} — 12 mois
+              <span style={{ color: ORANGE, fontSize: 10 }}>◆</span> {businessType === 'ecommerce' ? 'Évolution du CPA (coût d\'acquisition)' : 'Leads captés par mois'} — 12 mois
             </div>
             <ResponsiveContainer width="100%" height={220}>
               <ComposedChart data={monthlyData} margin={{ top: 8, right: 48, left: 0, bottom: 4 }}>
