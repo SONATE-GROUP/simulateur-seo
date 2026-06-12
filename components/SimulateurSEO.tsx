@@ -661,7 +661,7 @@ export default function SimulateurSEO() {
       if (!newKws.length) return;
       const newCats: Category[] = Object.entries(catNameToId).map(([name, id]) => {
         const nbInCat = newKws.filter(k => k.categoryId === id).length;
-        return { id, name, budget: Math.max(700, nbInCat * 700) };
+        return { id, name, budget: nbInCat * 700 };
       });
       const newCatIds = new Set(newCats.map(c => c.id));
       setState(s => ({
@@ -1320,7 +1320,7 @@ export default function SimulateurSEO() {
                         light
                         label={cat.name}
                         value={cat.budget ?? 700}
-                        min={300} max={5000} step={100} unit="€"
+                        min={0} max={5000} step={100} unit="€"
                         hint={`${nb} kw → ${fmtC(Math.round(bpk))}/kw · coeff ×${coeff.toFixed(2)} ${coeff >= 1 ? '↑' : '↓'}`}
                         onChange={v => updateCategoryBudget(cat.id, v)}
                       />
