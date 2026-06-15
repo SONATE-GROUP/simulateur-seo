@@ -50,6 +50,22 @@ export const authOptions: NextAuthOptions = {
         token.id            = user.id;
         token.isGlobalAdmin = user.isGlobalAdmin;
       }
+      // Mise à jour last_login_at au plus une fois par heure
+      const now       = Date.now();
+      const lastTrack = (token.lastTrackedAt as number) ?? 0;
+      if (token.id && now - lastTrack > 60 * 60 * 1000) {
+        token.lastTrackedAt = now;
+        const iso = new Date(now).toISOString();
+        await initDb();
+        await db.execute({
+          sql: `UPDATE users SET
+                  last_login_at  = ?,
+                  login_count    = COALESCE(login_count, 0) + 1,
+                  first_login_at = CASE WHEN first_login_at IS NULL THEN ? ELSE first_login_at END
+                WHERE id = ?`,
+          args: [iso, iso, token.id],
+        });
+      }
       return token;
     },
     async session({ session, token }) {
