@@ -36,6 +36,12 @@ export default function WorkspaceDetailPage() {
   const [addRole, setAddRole]     = useState<'owner' | 'editor' | 'reader'>('reader');
   const [adding, setAdding]       = useState(false);
   const [addError, setAddError]   = useState('');
+  const [addMode, setAddMode]     = useState<'existing' | 'invite'>('existing');
+  const [inviteEmail, setInviteEmail]   = useState('');
+  const [inviteRole, setInviteRole]     = useState<'owner' | 'editor' | 'reader'>('reader');
+  const [inviting, setInviting]         = useState(false);
+  const [inviteError, setInviteError]   = useState('');
+  const [inviteLink, setInviteLink]     = useState<string | null>(null);
   const [loading, setLoading]     = useState(true);
   const [renaming, setRenaming]   = useState(false);
   const [newName, setNewName]     = useState('');
@@ -101,6 +107,21 @@ export default function WorkspaceDetailPage() {
 
   const nonMembers = allUsers.filter(u => !members.find(m => m.id === u.id));
 
+  const createInvitation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteEmail.includes('@')) { setInviteError('Email invalide'); return; }
+    setInviting(true); setInviteError(''); setInviteLink(null);
+    const res = await fetch('/api/invitations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: inviteEmail, workspaceId, workspaceRole: inviteRole }),
+    });
+    const data = await res.json();
+    if (res.ok) { setInviteLink(data.inviteUrl); setInviteEmail(''); }
+    else { setInviteError(data.error || 'Erreur lors de la création'); }
+    setInviting(false);
+  };
+
   if (loading) return <div style={{ color: '#7a9e8e', fontSize: 14 }}>Chargement…</div>;
 
   return (
@@ -130,24 +151,69 @@ export default function WorkspaceDetailPage() {
 
       {canManage && (
         <div style={{ backgroundColor: G5, borderRadius: 12, padding: 20, marginBottom: 24, border: `1px solid ${G3}` }}>
-          <h2 style={{ fontSize: 13, fontWeight: 700, marginBottom: 14, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7a9e8e' }}>Ajouter un membre</h2>
-          <form onSubmit={addMember} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ display: 'flex', gap: 10, width: '100%' }}>
-              <select value={addUserId} onChange={e => setAddUserId(e.target.value)} style={{ flex: 1, backgroundColor: G3, border: `1px solid ${G4}`, borderRadius: 8, padding: '10px 12px', color: addUserId ? CREAM : '#5a7a6a', fontSize: 14, outline: 'none' }}>
-                <option value="">Sélectionner un utilisateur…</option>
-                {nonMembers.map(u => <option key={u.id} value={u.id}>{u.name ? `${u.name} (${u.email})` : u.email}</option>)}
-              </select>
-              <select value={addRole} onChange={e => setAddRole(e.target.value as 'owner' | 'editor' | 'reader')} style={{ backgroundColor: G3, border: `1px solid ${G4}`, borderRadius: 8, padding: '10px 12px', color: CREAM, fontSize: 14, outline: 'none' }}>
-                <option value="reader">Lecteur</option>
-                <option value="editor">Éditeur</option>
-                <option value="owner">Propriétaire</option>
-              </select>
-              <button type="submit" disabled={adding || !addUserId} style={{ backgroundColor: ORANGE, border: 'none', borderRadius: 8, padding: '10px 20px', color: 'white', fontSize: 14, fontWeight: 700, cursor: (adding || !addUserId) ? 'not-allowed' : 'pointer', opacity: (adding || !addUserId) ? 0.7 : 1, whiteSpace: 'nowrap' }}>
-                {adding ? '…' : 'Ajouter'}
-              </button>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <h2 style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7a9e8e', margin: 0 }}>Ajouter un membre</h2>
+            <div style={{ display: 'flex', backgroundColor: G3, borderRadius: 8, padding: 3, gap: 2 }}>
+              {(['existing', 'invite'] as const).map(mode => (
+                <button key={mode} onClick={() => { setAddMode(mode); setAddError(''); setInviteError(''); setInviteLink(null); }}
+                  style={{ fontSize: 12, fontWeight: 600, padding: '5px 12px', borderRadius: 6, border: 'none', cursor: 'pointer', transition: 'background .15s',
+                    backgroundColor: addMode === mode ? ORANGE : 'transparent',
+                    color: addMode === mode ? 'white' : '#7a9e8e',
+                  }}>
+                  {mode === 'existing' ? 'Utilisateur existant' : 'Inviter par email'}
+                </button>
+              ))}
             </div>
-            {addError && <div style={{ color: '#e05050', fontSize: 13 }}>{addError}</div>}
-          </form>
+          </div>
+
+          {addMode === 'existing' ? (
+            <form onSubmit={addMember} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <select value={addUserId} onChange={e => setAddUserId(e.target.value)} style={{ flex: 1, backgroundColor: G3, border: `1px solid ${G4}`, borderRadius: 8, padding: '10px 12px', color: addUserId ? CREAM : '#5a7a6a', fontSize: 14, outline: 'none' }}>
+                  <option value="">Sélectionner un utilisateur…</option>
+                  {nonMembers.map(u => <option key={u.id} value={u.id}>{u.name ? `${u.name} (${u.email})` : u.email}</option>)}
+                </select>
+                <select value={addRole} onChange={e => setAddRole(e.target.value as 'owner' | 'editor' | 'reader')} style={{ backgroundColor: G3, border: `1px solid ${G4}`, borderRadius: 8, padding: '10px 12px', color: CREAM, fontSize: 14, outline: 'none' }}>
+                  <option value="reader">Lecteur</option>
+                  <option value="editor">Éditeur</option>
+                  <option value="owner">Propriétaire</option>
+                </select>
+                <button type="submit" disabled={adding || !addUserId} style={{ backgroundColor: ORANGE, border: 'none', borderRadius: 8, padding: '10px 20px', color: 'white', fontSize: 14, fontWeight: 700, cursor: (adding || !addUserId) ? 'not-allowed' : 'pointer', opacity: (adding || !addUserId) ? 0.7 : 1, whiteSpace: 'nowrap' }}>
+                  {adding ? '…' : 'Ajouter'}
+                </button>
+              </div>
+              {addError && <div style={{ color: '#e05050', fontSize: 13 }}>{addError}</div>}
+            </form>
+          ) : (
+            <form onSubmit={createInvitation} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <input
+                  type="email" placeholder="email@exemple.com" value={inviteEmail}
+                  onChange={e => { setInviteEmail(e.target.value); setInviteLink(null); }}
+                  style={{ flex: 1, backgroundColor: G3, border: `1px solid ${G4}`, borderRadius: 8, padding: '10px 14px', color: CREAM, fontSize: 14, outline: 'none' }}
+                />
+                <select value={inviteRole} onChange={e => setInviteRole(e.target.value as 'owner' | 'editor' | 'reader')} style={{ backgroundColor: G3, border: `1px solid ${G4}`, borderRadius: 8, padding: '10px 12px', color: CREAM, fontSize: 14, outline: 'none' }}>
+                  <option value="reader">Lecteur</option>
+                  <option value="editor">Éditeur</option>
+                  <option value="owner">Propriétaire</option>
+                </select>
+                <button type="submit" disabled={inviting || !inviteEmail} style={{ backgroundColor: ORANGE, border: 'none', borderRadius: 8, padding: '10px 20px', color: 'white', fontSize: 14, fontWeight: 700, cursor: (inviting || !inviteEmail) ? 'not-allowed' : 'pointer', opacity: (inviting || !inviteEmail) ? 0.7 : 1, whiteSpace: 'nowrap' }}>
+                  {inviting ? '…' : 'Générer le lien'}
+                </button>
+              </div>
+              {inviteError && <div style={{ color: '#e05050', fontSize: 13 }}>{inviteError}</div>}
+              {inviteLink && (
+                <div style={{ backgroundColor: G3, borderRadius: 8, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ color: '#7a9e8e', fontSize: 12, flexShrink: 0 }}>Lien d&apos;invitation :</span>
+                  <code style={{ flex: 1, color: ORANGE, fontSize: 12, wordBreak: 'break-all' }}>{inviteLink}</code>
+                  <button type="button" onClick={() => navigator.clipboard.writeText(inviteLink)}
+                    style={{ backgroundColor: G4, border: 'none', borderRadius: 6, padding: '5px 10px', color: CREAM, fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                    Copier
+                  </button>
+                </div>
+              )}
+            </form>
+          )}
         </div>
       )}
 
