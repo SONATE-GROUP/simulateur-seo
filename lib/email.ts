@@ -11,8 +11,9 @@ export async function sendInvitationEmail({
 }) {
   const apiKey  = process.env.BREVO_API_KEY;
   const appName = 'Simulateur SEO';
-  const senderEmail = process.env.EMAIL_FROM_ADDRESS ?? 'noreply@wedig.fr';
-  const senderName  = process.env.EMAIL_FROM_NAME    ?? 'Simulateur SEO';
+  const senderEmail = process.env.EMAIL_FROM_ADDRESS;
+  const senderName  = process.env.EMAIL_FROM_NAME ?? 'Simulateur SEO';
+  if (!senderEmail) throw new Error('EMAIL_FROM_ADDRESS non configurée');
 
   const workspaceLine = workspaceName
     ? `<p style="color:#555;">Vous aurez accès à l'espace : <strong>${workspaceName}</strong></p>`
