@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { db, initDb } from '@/lib/turso';
+import { sendInvitationEmail } from '@/lib/email';
 import crypto from 'crypto';
 
 export const runtime = 'nodejs';
@@ -79,6 +80,17 @@ export async function POST(req: NextRequest) {
 
   const baseUrl   = process.env.NEXTAUTH_URL ?? 'http://localhost:3000';
   const inviteUrl = `${baseUrl}/invite/${token}`;
+
+  // Fetch workspace name and inviter name for the email
+  const [wsRes, inviterRes] = await Promise.all([
+    workspaceId ? db.execute({ sql: 'SELECT name FROM workspaces WHERE id = ?', args: [workspaceId] }) : null,
+    db.execute({ sql: 'SELECT name, email FROM users WHERE id = ?', args: [session.user.id] }),
+  ]);
+  const workspaceName = wsRes?.rows[0]?.[0] as string | undefined;
+  const inviterRow    = inviterRes.rows[0];
+  const inviterName   = (inviterRow?.[0] as string | null) ?? (inviterRow?.[1] as string) ?? 'L\'équipe';
+
+  await sendInvitationEmail({ to: normalizedEmail, inviteUrl, invitedBy: inviterName, workspaceName });
 
   return NextResponse.json({ id, token, email: normalizedEmail, expiresAt, createdAt: now, status: 'pending', inviteUrl });
 }
