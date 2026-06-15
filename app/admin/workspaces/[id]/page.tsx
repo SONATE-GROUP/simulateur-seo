@@ -117,8 +117,11 @@ export default function WorkspaceDetailPage() {
       body: JSON.stringify({ email: inviteEmail, workspaceId, workspaceRole: inviteRole }),
     });
     const data = await res.json();
-    if (res.ok) { setInviteLink(data.inviteUrl); setInviteEmail(''); }
-    else { setInviteError(data.error || 'Erreur lors de la création'); }
+    if (res.ok) {
+      setInviteLink(data.inviteUrl);
+      setInviteEmail('');
+      if (data.emailError) setInviteError(`Invitation créée mais email non envoyé : ${data.emailError}`);
+    } else { setInviteError(data.error || 'Erreur lors de la création'); }
     setInviting(false);
   };
 

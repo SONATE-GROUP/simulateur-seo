@@ -48,5 +48,10 @@ export async function sendInvitationEmail({
   }
 
   const resend = new Resend(apiKey);
-  await resend.emails.send({ from, to, subject: `Votre invitation à ${appName}`, html, text });
+  const result = await resend.emails.send({ from, to, subject: `Votre invitation à ${appName}`, html, text });
+  if (result.error) {
+    console.error('[Resend] Erreur envoi email:', JSON.stringify(result.error));
+    throw new Error(result.error.message ?? 'Erreur Resend');
+  }
+  console.log('[Resend] Email envoyé à', to, '— id:', result.data?.id);
 }

@@ -90,7 +90,13 @@ export async function POST(req: NextRequest) {
   const inviterRow    = inviterRes.rows[0];
   const inviterName   = (inviterRow?.[0] as string | null) ?? (inviterRow?.[1] as string) ?? 'L\'équipe';
 
-  await sendInvitationEmail({ to: normalizedEmail, inviteUrl, invitedBy: inviterName, workspaceName });
+  try {
+    await sendInvitationEmail({ to: normalizedEmail, inviteUrl, invitedBy: inviterName, workspaceName });
+  } catch (err) {
+    console.error('[invitations] Échec envoi email:', err);
+    // L'invitation est créée en base, on retourne quand même le lien mais avec un flag
+    return NextResponse.json({ id, token, email: normalizedEmail, expiresAt, createdAt: now, status: 'pending', inviteUrl, emailError: (err as Error).message });
+  }
 
   return NextResponse.json({ id, token, email: normalizedEmail, expiresAt, createdAt: now, status: 'pending', inviteUrl });
 }
