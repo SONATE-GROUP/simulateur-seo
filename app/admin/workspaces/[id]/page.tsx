@@ -205,16 +205,7 @@ export default function WorkspaceDetailPage() {
                 </button>
               </div>
               {inviteError && <div style={{ color: '#e05050', fontSize: 13 }}>{inviteError}</div>}
-              {inviteLink && (
-                <div style={{ backgroundColor: G3, borderRadius: 8, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ color: '#7a9e8e', fontSize: 12, flexShrink: 0 }}>Lien d&apos;invitation :</span>
-                  <code style={{ flex: 1, color: ORANGE, fontSize: 12, wordBreak: 'break-all' }}>{inviteLink}</code>
-                  <button type="button" onClick={() => navigator.clipboard.writeText(inviteLink)}
-                    style={{ backgroundColor: G4, border: 'none', borderRadius: 6, padding: '5px 10px', color: CREAM, fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                    Copier
-                  </button>
-                </div>
-              )}
+              {inviteLink && <div style={{ color: '#4caf7d', fontSize: 13 }}>Invitation envoyée par email.</div>}
             </form>
           )}
         </div>

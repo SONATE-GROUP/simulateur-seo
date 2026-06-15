@@ -212,14 +212,7 @@ export default function UsersPage() {
             {inviteMsg && <span style={{ fontSize: 13, color: inviteMsg.ok ? '#4caf7d' : '#e05050' }}>{inviteMsg.text}</span>}
           </div>
         </form>
-        {freshLink && (
-          <div style={{ marginTop: 14, backgroundColor: G3, borderRadius: 8, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 11, color: '#7a9e8e', flexShrink: 0 }}>Lien à envoyer :</span>
-            <span style={{ fontSize: 12, color: CREAM, flex: 1, wordBreak: 'break-all', fontFamily: 'monospace' }}>{freshLink}</span>
-            <button onClick={() => { navigator.clipboard.writeText(freshLink); setCopied(true); setTimeout(() => setCopied(false), 2000); }} style={{ backgroundColor: copied ? '#4caf7d' : ORANGE, border: 'none', borderRadius: 6, padding: '6px 14px', color: 'white', fontSize: 12, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
-              {copied ? '✓ Copié !' : 'Copier'}
-            </button>
-          </div>
+        {freshLink && null /* lien masqué — l'email est envoyé automatiquement */}
         )}
       </div>
 
