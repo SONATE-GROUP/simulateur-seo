@@ -212,8 +212,6 @@ export default function UsersPage() {
             {inviteMsg && <span style={{ fontSize: 13, color: inviteMsg.ok ? '#4caf7d' : '#e05050' }}>{inviteMsg.text}</span>}
           </div>
         </form>
-        {freshLink && null /* lien masqué — l'email est envoyé automatiquement */}
-        )}
       </div>
 
       {/* Direct create */}
