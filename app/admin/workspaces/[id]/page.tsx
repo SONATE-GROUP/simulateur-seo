@@ -201,7 +201,7 @@ export default function WorkspaceDetailPage() {
                   <option value="owner">Propriétaire</option>
                 </select>
                 <button type="submit" disabled={inviting || !inviteEmail} style={{ backgroundColor: ORANGE, border: 'none', borderRadius: 8, padding: '10px 20px', color: 'white', fontSize: 14, fontWeight: 700, cursor: (inviting || !inviteEmail) ? 'not-allowed' : 'pointer', opacity: (inviting || !inviteEmail) ? 0.7 : 1, whiteSpace: 'nowrap' }}>
-                  {inviting ? '…' : 'Générer le lien'}
+                  {inviting ? '…' : 'Envoyer l\'invitation'}
                 </button>
               </div>
               {inviteError && <div style={{ color: '#e05050', fontSize: 13 }}>{inviteError}</div>}

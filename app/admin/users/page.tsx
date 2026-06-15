@@ -207,7 +207,7 @@ export default function UsersPage() {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <button type="submit" disabled={sending} style={{ backgroundColor: ORANGE, border: 'none', borderRadius: 8, padding: '10px 24px', color: 'white', fontSize: 14, fontWeight: 700, cursor: sending ? 'not-allowed' : 'pointer', opacity: sending ? 0.7 : 1 }}>
-              {sending ? 'Génération…' : '+ Générer un lien d\'invitation'}
+              {sending ? 'Envoi…' : '+ Envoyer une invitation'}
             </button>
             {inviteMsg && <span style={{ fontSize: 13, color: inviteMsg.ok ? '#4caf7d' : '#e05050' }}>{inviteMsg.text}</span>}
           </div>
