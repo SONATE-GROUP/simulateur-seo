@@ -1,23 +1,4 @@
-import nodemailer from 'nodemailer';
-
-function createTransport() {
-  const host = process.env.SMTP_HOST;
-  const port = parseInt(process.env.SMTP_PORT ?? '587', 10);
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
-
-  if (!host || !user || !pass) {
-    // Fallback: log to console in dev/preview environments
-    return null;
-  }
-
-  return nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465,
-    auth: { user, pass },
-  });
-}
+import { Resend } from 'resend';
 
 export async function sendInvitationEmail({
   to,
@@ -30,8 +11,9 @@ export async function sendInvitationEmail({
   invitedBy: string;
   workspaceName?: string;
 }) {
-  const from = process.env.SMTP_FROM ?? process.env.SMTP_USER ?? 'noreply@example.com';
+  const apiKey  = process.env.RESEND_API_KEY;
   const appName = 'Simulateur SEO';
+  const from    = process.env.EMAIL_FROM ?? 'Simulateur SEO <onboarding@resend.dev>';
 
   const workspaceLine = workspaceName
     ? `<p style="color:#555;">Vous aurez accès à l'espace : <strong>${workspaceName}</strong></p>`
@@ -57,21 +39,14 @@ export async function sendInvitationEmail({
 
   const text = `Vous avez été invité(e) à rejoindre ${appName} par ${invitedBy}.\n\nActivez votre compte ici : ${inviteUrl}\n\nCe lien expire dans 7 jours.`;
 
-  const transport = createTransport();
-  if (!transport) {
-    // Dev mode: print to console
-    console.log('\n=== INVITATION EMAIL (dev/no SMTP) ===');
+  if (!apiKey) {
+    console.log('\n=== INVITATION EMAIL (dev — RESEND_API_KEY manquante) ===');
     console.log(`To: ${to}`);
     console.log(`Invite URL: ${inviteUrl}`);
-    console.log('======================================\n');
+    console.log('=========================================================\n');
     return;
   }
 
-  await transport.sendMail({
-    from,
-    to,
-    subject: `Votre invitation à ${appName}`,
-    html,
-    text,
-  });
+  const resend = new Resend(apiKey);
+  await resend.emails.send({ from, to, subject: `Votre invitation à ${appName}`, html, text });
 }
