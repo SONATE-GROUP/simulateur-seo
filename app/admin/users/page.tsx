@@ -122,7 +122,11 @@ export default function UsersPage() {
     const res = await fetch('/api/invitations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: inviteEmail, workspaceId: inviteWorkspace || null, workspaceRole: inviteRole }) });
     const data = await res.json();
     if (res.ok) {
-      setInviteMsg({ ok: true, text: `Lien généré pour ${inviteEmail}` });
+      if (data.emailError) {
+        setInviteMsg({ ok: false, text: `Lien créé mais email non envoyé : ${data.emailError}` });
+      } else {
+        setInviteMsg({ ok: true, text: `Invitation envoyée à ${inviteEmail}` });
+      }
       setFreshLink(data.inviteUrl); setCopied(false);
       setInviteEmail(''); setInviteWorkspace(''); setInviteRole('reader');
       setInvitations(prev => [data, ...prev]);
