@@ -62,6 +62,7 @@ export default function UsersPage() {
 
   const [resending, setResending]     = useState<string | null>(null);
   const [resendLinks, setResendLinks] = useState<Record<string, string>>({});
+  const [deletingInv, setDeletingInv] = useState<string | null>(null);
 
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [accessData, setAccessData]     = useState<Record<string, AccessWorkspace[]>>({});
@@ -154,6 +155,14 @@ export default function UsersPage() {
   const toggleAdmin = async (userId: string, current: boolean) => {
     const res = await fetch('/api/users', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, isGlobalAdmin: !current }) });
     if (res.ok) setUsers(prev => prev.map(u => u.id === userId ? { ...u, isGlobalAdmin: !current } : u));
+  };
+
+  const deleteInvitation = async (invId: string, email: string) => {
+    if (!confirm(`Supprimer l'invitation pour "${email}" ?`)) return;
+    setDeletingInv(invId);
+    await fetch('/api/invitations', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: invId }) });
+    setInvitations(prev => prev.filter(i => i.id !== invId));
+    setDeletingInv(null);
   };
 
   const deleteUser = async (userId: string, userName: string) => {
@@ -256,6 +265,9 @@ export default function UsersPage() {
                       )}
                     </>
                   )}
+                  <button onClick={() => deleteInvitation(inv.id, inv.email)} disabled={deletingInv === inv.id} style={{ backgroundColor: 'transparent', border: '1px solid #e05050', borderRadius: 6, padding: '4px 10px', color: '#e05050', fontSize: 11, cursor: deletingInv === inv.id ? 'not-allowed' : 'pointer', opacity: deletingInv === inv.id ? 0.5 : 1, whiteSpace: 'nowrap' }}>
+                    {deletingInv === inv.id ? '…' : 'Supprimer'}
+                  </button>
                 </div>
               </div>
             ))}

@@ -100,3 +100,16 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ id, token, email: normalizedEmail, expiresAt, createdAt: now, status: 'pending', inviteUrl });
 }
+
+/* DELETE /api/invitations — delete an invitation by id (global admin only) */
+export async function DELETE(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.isGlobalAdmin) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+  await initDb();
+
+  const { id } = await req.json();
+  if (!id) return NextResponse.json({ error: 'id requis' }, { status: 400 });
+
+  await db.execute({ sql: 'DELETE FROM invitations WHERE id = ?', args: [id] });
+  return NextResponse.json({ success: true });
+}
