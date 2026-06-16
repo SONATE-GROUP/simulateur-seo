@@ -5,7 +5,7 @@ import { useSession, signOut } from 'next-auth/react';
 import * as XLSX from 'xlsx';
 import {
   ComposedChart, BarChart, Bar, Line, Cell, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, ReferenceLine, Legend,
+  Tooltip, ResponsiveContainer, ReferenceLine,
 } from 'recharts';
 
 /* ─── TYPES ──────────────────────────────────────────────────── */
@@ -2009,9 +2009,6 @@ export default function SimulateurSEO() {
                   tickFormatter={v => v >= 1000 ? `${(v / 1000).toFixed(0)}k€` : `${v}€`}
                 />
                 <Tooltip content={<ChartTooltip />} />
-                <Legend
-                  formatter={v => <span style={{ color: '#a8c5b5', fontSize: 11 }}>{CHART_SERIES_LABEL[v] ?? v}</span>}
-                />
                 {breakEvenMode === 'cumule' ? (
                   <>
                     <Bar dataKey="budgetCumule" fill={G4} name="budgetCumule" radius={[3, 3, 0, 0]} maxBarSize={32} />
@@ -2034,6 +2031,10 @@ export default function SimulateurSEO() {
                 )}
               </ComposedChart>
             </ResponsiveContainer>
+            <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 10, color: '#5a7a6a' }}>
+              <span><span style={{ display: 'inline-block', width: 10, height: 10, backgroundColor: G4, borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} />{breakEvenMode === 'cumule' ? 'Budget cumulé' : 'Budget mensuel'}</span>
+              <span><span style={{ display: 'inline-block', width: 10, height: 2, backgroundColor: ORANGE, marginRight: 4, verticalAlign: 'middle' }} />{breakEvenMode === 'cumule' ? 'CA cumulé' : 'CA mensuel'}</span>
+            </div>
           </div>
 
           {/* BLOC 4b — LEADS PAR MOIS */}
