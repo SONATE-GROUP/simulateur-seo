@@ -82,6 +82,17 @@ function computeLogBudget(cumBudget: number, nbActiveInCat: number): number {
   return Math.log(1 + Math.pow(effBudget / BUDGET_THRESH, BUDGET_EXP) / 20);
 }
 
+// Piecewise-linear coefficient from the Semrush Health Score:
+// 0-50  → +0.014 per point
+// 51-70 → +0.09  per point (steepest gain zone)
+// 71-100 → +0.04 per point
+function computeHealthCoeff(score: number): number {
+  const s = Math.min(Math.max(score, 0), 100);
+  if (s <= 50) return s * 0.014;
+  if (s <= 70) return 0.7 + (s - 50) * 0.09;
+  return 2.5 + (s - 70) * 0.04;
+}
+
 const DEFAULT_KEYWORDS: Keyword[] = [
   { id: '1', keyword: 'acheter graines tomates',   volume: 2400, difficulty: 35, proximity: 1, intention: 1, topic: 'Graines tomates', categoryId: 'cat1' },
   { id: '2', keyword: 'meilleures graines potager', volume: 1800, difficulty: 42, proximity: 2, intention: 2, topic: 'Graines potager', categoryId: 'cat1' },
@@ -453,7 +464,7 @@ export default function SimulateurSEO() {
   const kwAllocations = useMemo(() => {
     const CHUNK = 200; // € per allocation step
     const PROX_FACTOR: Record<number, number> = { 1: 1.0, 2: 1.5, 3: 3.0 };
-    const coeffSante = Math.max(0.01, healthScore / 80);
+    const coeffSante = Math.max(0.01, computeHealthCoeff(healthScore));
 
     // Per-category: budget (scaled by budgetRatio), keyword count, coeff
     const catBudget: Record<string, number> = {};
@@ -577,7 +588,7 @@ export default function SimulateurSEO() {
   /* Per-keyword results */
   const kwResults = useMemo(() => {
     const PROX_FACTOR: Record<number, number> = { 1: 1.0, 2: 1.5, 3: 3.0 };
-    const coeffSante = Math.max(0.01, healthScore / 80);
+    const coeffSante = Math.max(0.01, computeHealthCoeff(healthScore));
 
     return keywords.map(kw => {
       const alloc    = kwAllocations[kw.id];
@@ -1019,7 +1030,7 @@ export default function SimulateurSEO() {
     pdf.save(`simulation-seo-${(prospectName || 'prospect').toLowerCase().replace(/\s+/g, '-')}.pdf`);
   };
 
-  const coeffSante = (healthScore / 80).toFixed(2);
+  const coeffSante = computeHealthCoeff(healthScore).toFixed(2);
 
   /* ── RENDER ─────────────────────────────────────────────────── */
   return (
