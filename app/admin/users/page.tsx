@@ -190,7 +190,7 @@ export default function UsersPage() {
   const pendingInvites = invitations.filter(i => i.status !== 'accepted');
 
   return (
-    <div style={{ maxWidth: 920 }}>
+    <div style={{ maxWidth: 1180 }}>
       <div style={{ marginBottom: 28 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>Utilisateurs</h1>
         <p style={{ color: '#7a9e8e', fontSize: 14 }}>
@@ -287,14 +287,14 @@ export default function UsersPage() {
           <div style={{ backgroundColor: G5, borderRadius: 12, padding: '48px 32px', textAlign: 'center', color: '#7a9e8e', fontSize: 15, border: `1px solid ${G3}` }}>Aucun utilisateur.</div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 130px 72px 100px 100px 80px 90px 90px 80px', gap: 10, padding: '4px 16px', color: '#5a7a6a', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 110px 64px 90px 90px 60px 90px 90px 90px', gap: 10, padding: '4px 16px', color: '#5a7a6a', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
               <span>Nom</span><span>Email</span><span>Rôle</span><span>Espaces</span><span>1re cnx</span><span>Dernière cnx</span><span>Cnx</span><span title="Temps passé total dans le simulateur">Temps passé</span><span title="Nombre d'interactions (clics, saisies)">Interactions</span><span></span>
             </div>
             {users.map(u => (
               <div key={u.id}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 130px 72px 100px 100px 80px 90px 90px 80px', gap: 10, alignItems: 'center', backgroundColor: G5, borderRadius: expandedUser === u.id ? '10px 10px 0 0' : 10, padding: '12px 16px', border: `1px solid ${expandedUser === u.id ? G4 : G3}` }}>
-                  <span style={{ fontWeight: 600, fontSize: 13 }}>{u.name || <span style={{ color: '#5a7a6a', fontStyle: 'italic' }}>-</span>}</span>
-                  <span style={{ color: '#7a9e8e', fontSize: 12 }}>{u.email}</span>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 110px 64px 90px 90px 60px 90px 90px 90px', gap: 10, alignItems: 'center', backgroundColor: G5, borderRadius: expandedUser === u.id ? '10px 10px 0 0' : 10, padding: '12px 16px', border: `1px solid ${expandedUser === u.id ? G4 : G3}` }}>
+                  <span style={{ fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.name || <span style={{ color: '#5a7a6a', fontStyle: 'italic' }}>-</span>}</span>
+                  <span style={{ color: '#7a9e8e', fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.email}</span>
                   <span>
                     {u.id !== session?.user?.id ? (
                       <button onClick={() => toggleAdmin(u.id, u.isGlobalAdmin)} style={{ backgroundColor: u.isGlobalAdmin ? ORANGE + '22' : G3, color: u.isGlobalAdmin ? ORANGE : '#7a9e8e', border: `1px solid ${u.isGlobalAdmin ? ORANGE + '44' : G4}`, borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
