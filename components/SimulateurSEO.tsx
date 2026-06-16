@@ -2068,6 +2068,10 @@ export default function SimulateurSEO() {
                 )}
               </ComposedChart>
             </ResponsiveContainer>
+            <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 10, color: '#5a7a6a' }}>
+              <span><span style={{ display: 'inline-block', width: 10, height: 10, backgroundColor: ORANGE, borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} />{businessType === 'ecommerce' ? 'Ventes' : 'Leads'}</span>
+              <span><span style={{ display: 'inline-block', width: 10, height: 2, backgroundColor: '#a8c5b5', marginRight: 4, verticalAlign: 'middle' }} />{businessType === 'ecommerce' ? 'CPA' : 'CPL'}</span>
+            </div>
           </div>
 
           {/* BLOC 4c — MONTÉE EN PUISSANCE */}
