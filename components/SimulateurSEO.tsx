@@ -57,6 +57,7 @@ interface SimState {
   categories: Category[];
   budgetCatsHidden: boolean;
   chalandisePercent: number;
+  breakEvenMode: 'mensuel' | 'cumule';
 }
 
 /* ─── CONSTANTS ──────────────────────────────────────────────── */
@@ -146,6 +147,7 @@ const INITIAL: SimState = {
   categories: [],
   budgetCatsHidden: false,
   chalandisePercent: 100,
+  breakEvenMode: 'mensuel',
 };
 
 /* ─── PALETTE ────────────────────────────────────────────────── */
@@ -337,6 +339,11 @@ function ConversionFunnel({ stages, rates }: {
 }
 
 /* ─── CUSTOM TOOLTIP ─────────────────────────────────────────── */
+const CHART_SERIES_LABEL: Record<string, string> = {
+  budget: 'Budget mensuel', ca: 'CA mensuel',
+  budgetCumule: 'Budget cumulé', caCumule: 'CA cumulé',
+};
+
 function ChartTooltip({ active, payload, label }: {
   active?: boolean; payload?: Array<{ name: string; value: number; color: string }>; label?: string;
 }) {
@@ -346,7 +353,7 @@ function ChartTooltip({ active, payload, label }: {
       <div style={{ fontWeight: 700, marginBottom: 6 }}>{label}</div>
       {payload.map((p, i) => (
         <div key={i} style={{ display: 'flex', gap: 10, justifyContent: 'space-between' }}>
-          <span style={{ color: p.color }}>{p.name === 'budget' ? 'Budget mensuel' : 'CA mensuel'}</span>
+          <span style={{ color: p.color }}>{CHART_SERIES_LABEL[p.name] ?? p.name}</span>
           <span style={{ fontWeight: 600 }}>{fmtC(p.value)}</span>
         </div>
       ))}
@@ -430,7 +437,7 @@ export default function SimulateurSEO() {
     budgetRatio,
     seasonalityEnabled, startMonth, highSeasonMonths, highSeasonMultiplier,
     kwMultiplier, businessType, tauxRdv, tauxClosing, categories, budgetCatsHidden,
-    chalandisePercent,
+    chalandisePercent, breakEvenMode,
   } = state;
 
   const cr: Record<Intention, number> = {
@@ -447,6 +454,7 @@ export default function SimulateurSEO() {
       categories: (s.categories ?? []).map(c => ({ ...c, budget: c.budget ?? 700 })),
       keywords: (s.keywords ?? []).map(k => ({ ...k, zone: k.zone ?? 'chalandise' })),
       chalandisePercent: s.chalandisePercent ?? 100,
+      breakEvenMode: s.breakEvenMode ?? 'mensuel',
     });
     if (data) {
       try { setState(migrate(decodeState(data))); } catch { /* ignore */ }
@@ -657,6 +665,8 @@ export default function SimulateurSEO() {
     const leadConv = businessType === 'lead' ? (tauxRdv / 100) * (tauxClosing / 100) : 1;
 
     let bev = -1;
+    let cumBudget = 0;
+    let cumCA = 0;
     const data = Array.from({ length: 12 }, (_, i) => {
       const calMonth = (startMonth + i) % 12;
       const label = seasonalityEnabled ? MONTH_NAMES[calMonth] : `M${i + 1}`;
@@ -680,12 +690,20 @@ export default function SimulateurSEO() {
       leads   *= kwMultiplier;
       ca      *= kwMultiplier;
 
-      if (bev === -1 && ca >= monthlyBudget) bev = i + 1;
+      cumBudget += monthlyBudget;
+      cumCA     += ca;
+
+      if (bev === -1) {
+        const reached = breakEvenMode === 'cumule' ? cumCA >= cumBudget : ca >= monthlyBudget;
+        if (reached) bev = i + 1;
+      }
       const cplMonth = leads > 0.5 ? Math.round(monthlyBudget / leads) : null;
       return {
         month: label,
         budget: Math.round(monthlyBudget),
         ca: Math.round(ca),
+        budgetCumule: Math.round(cumBudget),
+        caCumule: Math.round(cumCA),
         leads: Math.round(leads),
         traffic: Math.round(traffic),
         cplMonth,
@@ -697,7 +715,7 @@ export default function SimulateurSEO() {
       ? (seasonalityEnabled ? MONTH_NAMES[(startMonth + bev - 1) % 12] : `M${bev}`)
       : null;
     return { monthlyData: data, breakEvenMonth: bevLabel };
-  }, [kwResults, categories, budgetRatio, businessType, tauxRdv, tauxClosing, basketValue, kwMultiplier, seasonalityEnabled, startMonth, highSeasonMonths, highSeasonMultiplier, crTransactionnel, crPreAchat, crIntermediaire, crInformationnel]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [kwResults, categories, budgetRatio, businessType, tauxRdv, tauxClosing, basketValue, kwMultiplier, seasonalityEnabled, startMonth, highSeasonMonths, highSeasonMultiplier, crTransactionnel, crPreAchat, crIntermediaire, crInformationnel, breakEvenMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* Totals */
   const totals = useMemo(() => {
@@ -1952,9 +1970,31 @@ export default function SimulateurSEO() {
                   Saisonnalité active
                 </span>
               )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}>
+                <span style={{ color: '#7a9e8e', fontSize: 11 }}>Mensuel</span>
+                <button
+                  onClick={() => update({ breakEvenMode: breakEvenMode === 'cumule' ? 'mensuel' : 'cumule' })}
+                  style={{
+                    backgroundColor: breakEvenMode === 'cumule' ? ORANGE : G3,
+                    border: 'none', borderRadius: 12,
+                    width: 36, height: 20, cursor: 'pointer',
+                    position: 'relative', transition: 'background .2s', flexShrink: 0,
+                  }}
+                  title="Basculer le calcul de break-even entre comparaison mensuelle et cumulée"
+                >
+                  <span style={{
+                    position: 'absolute', top: 2,
+                    left: breakEvenMode === 'cumule' ? 18 : 2,
+                    width: 16, height: 16,
+                    backgroundColor: 'white', borderRadius: '50%',
+                    transition: 'left .2s', display: 'block',
+                  }} />
+                </button>
+                <span style={{ color: '#7a9e8e', fontSize: 11 }}>Cumulé</span>
+              </div>
               {breakEvenMonth && (
-                <span style={{ marginLeft: 'auto', color: ORANGE, fontSize: 12, fontWeight: 400, background: `${ORANGE}22`, borderRadius: 4, padding: '2px 8px' }}>
-                  Break-even : {breakEvenMonth}
+                <span style={{ color: ORANGE, fontSize: 12, fontWeight: 400, background: `${ORANGE}22`, borderRadius: 4, padding: '2px 8px' }}>
+                  Break-even ({breakEvenMode === 'cumule' ? 'cumulé' : 'mensuel'}) : {breakEvenMonth}
                 </span>
               )}
             </div>
@@ -1970,10 +2010,19 @@ export default function SimulateurSEO() {
                 />
                 <Tooltip content={<ChartTooltip />} />
                 <Legend
-                  formatter={v => <span style={{ color: '#a8c5b5', fontSize: 11 }}>{v === 'budget' ? 'Budget mensuel' : 'CA mensuel'}</span>}
+                  formatter={v => <span style={{ color: '#a8c5b5', fontSize: 11 }}>{CHART_SERIES_LABEL[v] ?? v}</span>}
                 />
-                <Bar dataKey="budget" fill={G4} name="budget" radius={[3, 3, 0, 0]} maxBarSize={32} />
-                <Line dataKey="ca" stroke={ORANGE} strokeWidth={2.5} dot={false} name="ca" />
+                {breakEvenMode === 'cumule' ? (
+                  <>
+                    <Bar dataKey="budgetCumule" fill={G4} name="budgetCumule" radius={[3, 3, 0, 0]} maxBarSize={32} />
+                    <Line dataKey="caCumule" stroke={ORANGE} strokeWidth={2.5} dot={false} name="caCumule" />
+                  </>
+                ) : (
+                  <>
+                    <Bar dataKey="budget" fill={G4} name="budget" radius={[3, 3, 0, 0]} maxBarSize={32} />
+                    <Line dataKey="ca" stroke={ORANGE} strokeWidth={2.5} dot={false} name="ca" />
+                  </>
+                )}
                 {breakEvenMonth && (
                   <ReferenceLine
                     x={breakEvenMonth}
