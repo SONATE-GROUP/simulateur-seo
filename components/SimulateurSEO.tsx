@@ -524,13 +524,19 @@ export default function SimulateurSEO() {
     // Proximity weight prioritizes exact-match keywords over thematic ones
     // (proximity 1=exact, 2=très proche, 3=thématique → weight 3, 2, 1)
     const POTENTIAL_PROX_WEIGHT: Record<number, number> = { 1: 3, 2: 2, 3: 1 };
-    // Gain réel obtenu en ajoutant CHUNK au budget cumulé : compare la position
-    // actuelle à la position après ajout du chunk, plutôt qu'un gain théorique
-    // vers la position-1 qui peut ne jamais être atteinte (budget gaspillé sans effet).
+    // Fenêtre utilisée pour détecter un gain réel de position : plus large que
+    // CHUNK (la granularité d'allocation) car sur un pas de seulement quelques
+    // dizaines d'euros, la position arrondie ne bouge jamais (effet de seuil),
+    // ce qui annulerait à tort le potentiel de tous les mots-clés dès le départ.
+    const DECISION_LOOKAHEAD = 1000;
+    // Gain réel obtenu en regardant plus loin dans le budget cumulé : compare la
+    // position actuelle à la position après un investissement supplémentaire
+    // significatif, plutôt qu'un gain théorique vers la position-1 qui peut ne
+    // jamais être atteinte (budget gaspillé sans effet, ex. mot-clé déjà stabilisé).
     const getPotential = (kw: Keyword, cumBudget: number, nbActiveInCat: number): number => {
       const pos = getPos(getPosRaw(kw, cumBudget, nbActiveInCat));
       if (pos <= 1) return 0; // already at best position
-      const posAfter = getPos(getPosRaw(kw, cumBudget + CHUNK, nbActiveInCat));
+      const posAfter = getPos(getPosRaw(kw, cumBudget + DECISION_LOOKAHEAD, nbActiveInCat));
       const gain = (CTR_TABLE[posAfter] ?? 0) - (CTR_TABLE[pos] ?? 0);
       if (gain <= 0) return 0;
       const crVal = cr[kw.intention as Intention]; // already in %
