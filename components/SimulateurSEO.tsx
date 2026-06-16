@@ -791,6 +791,8 @@ export default function SimulateurSEO() {
     };
   }, [kwResults, monthlyData, keywords, categories, budgetRatio, kwMultiplier, businessType, tauxRdv, tauxClosing, basketValue]);
 
+  const hasCatCoeffApplied = useMemo(() => categories.some(c => (c.coeff ?? 1) > 1), [categories]);
+
   /* CPL */
   const cpl = useMemo(() => {
     const { totalLeads_annual: tl, budgetTotal: bt } = totals;
@@ -2170,19 +2172,21 @@ export default function SimulateurSEO() {
                       { label: 'Diff.',            align: 'center' },
                       { label: 'Position M+12',    align: 'center' },
                       { label: 'CTR',              align: 'center' },
-                      { label: 'Trafic / mois',    align: 'right'  },
-                      { label: businessType === 'ecommerce' ? 'Ventes / mois' : 'Leads / mois', align: 'right' },
-                      { label: 'CA / mois',        align: 'right'  },
+                      { label: 'Trafic / mois',    align: 'right', starred: hasCatCoeffApplied },
+                      { label: businessType === 'ecommerce' ? 'Ventes / mois' : 'Leads / mois', align: 'right', starred: hasCatCoeffApplied },
+                      { label: 'CA / mois',        align: 'right', starred: hasCatCoeffApplied },
                       { label: 'Intention',        align: 'center' },
                       { label: 'Budget / an',      align: 'right'  },
                       { label: '1er mois',         align: 'center' },
-                    ].map(({ label, align }) => (
+                    ].map(({ label, align, starred }) => (
                       <th key={label} style={{
                         padding: '6px 8px',
                         textAlign: align as 'left' | 'right' | 'center',
                         color: '#5a7a6a', fontWeight: 600,
                         textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: 10,
-                      }}>{label}</th>
+                      }}>
+                        {label}{starred && <span style={{ color: ORANGE, marginLeft: 3 }}>★</span>}
+                      </th>
                     ))}
                   </tr>
                 </thead>
@@ -2344,6 +2348,11 @@ export default function SimulateurSEO() {
                 </tfoot>
               </table>
             </div>
+            {hasCatCoeffApplied && (
+              <div style={{ marginTop: 8, fontSize: 10, color: '#5a7a6a' }}>
+                <span style={{ color: ORANGE }}>★</span> Ces chiffres prennent en compte l'extrapolation des mots clés associés
+              </div>
+            )}
           </div>
 
           {/* BLOC 7 — PARAMÈTRES (résumé pour le PDF) */}
