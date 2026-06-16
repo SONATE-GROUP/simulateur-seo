@@ -84,13 +84,13 @@ function computeLogBudget(cumBudget: number, nbActiveInCat: number): number {
 
 // Piecewise-linear coefficient from the Semrush Health Score:
 // 0-50  → +0.014 per point
-// 51-70 → +0.09  per point (steepest gain zone)
-// 71-100 → +0.04 per point
+// 51-70 → +0.009 per point
+// 71-100 → +0.004 per point
 function computeHealthCoeff(score: number): number {
   const s = Math.min(Math.max(score, 0), 100);
   if (s <= 50) return s * 0.014;
-  if (s <= 70) return 0.7 + (s - 50) * 0.09;
-  return 2.5 + (s - 70) * 0.04;
+  if (s <= 70) return 0.7 + (s - 50) * 0.009;
+  return 0.88 + (s - 70) * 0.004;
 }
 
 const DEFAULT_KEYWORDS: Keyword[] = [
