@@ -66,6 +66,18 @@ const CTR_TABLE: Record<number, number> = {
   6: 0.059, 7: 0.049, 8: 0.043, 9: 0.037, 10: 0.034, 11: 0,
 };
 
+// Linear interpolation of CTR between two integer ranks, for a continuous
+// (non-rounded) position. Used to detect small budget-driven ranking gains
+// that a rounded position comparison would mask as zero.
+function interpolateCTR(rawPos: number): number {
+  const clamped = Math.min(Math.max(rawPos, 1), 11);
+  const lower = Math.floor(clamped);
+  const upper = Math.ceil(clamped);
+  if (lower === upper) return CTR_TABLE[lower] ?? 0;
+  const frac = clamped - lower;
+  return (CTR_TABLE[lower] ?? 0) + ((CTR_TABLE[upper] ?? 0) - (CTR_TABLE[lower] ?? 0)) * frac;
+}
+
 const INTENT_LABEL: Record<number, string> = {
   1: 'Transactionnel', 2: 'Navigationnelle', 3: 'Commerciale', 4: 'Informationnel',
 };
@@ -528,10 +540,15 @@ export default function SimulateurSEO() {
     // actuelle à la position après ajout du chunk, plutôt qu'un gain théorique
     // vers la position-1 qui peut ne jamais être atteinte (budget gaspillé sans effet).
     const getPotential = (kw: Keyword, cumBudget: number, nbActiveInCat: number): number => {
-      const pos = getPos(getPosRaw(kw, cumBudget, nbActiveInCat));
-      if (pos <= 1) return 0; // already at best position
-      const posAfter = getPos(getPosRaw(kw, cumBudget + CHUNK, nbActiveInCat));
-      const gain = (CTR_TABLE[posAfter] ?? 0) - (CTR_TABLE[pos] ?? 0);
+      const rawPos = getPosRaw(kw, cumBudget, nbActiveInCat);
+      if (rawPos <= 1) return 0; // already at best position
+      // Use continuous (non-rounded) positions for the gain so that a single
+      // CHUNK of budget still registers a (small) improvement even when it
+      // isn't enough to cross an integer rank boundary — otherwise the
+      // allocation loop sees gain=0 for every keyword and stops allocating
+      // budget entirely.
+      const rawPosAfter = getPosRaw(kw, cumBudget + CHUNK, nbActiveInCat);
+      const gain = interpolateCTR(rawPosAfter) - interpolateCTR(rawPos);
       if (gain <= 0) return 0;
       const crVal = cr[kw.intention as Intention]; // already in %
       const diff2 = (kw.difficulty || 1) * (kw.difficulty || 1);
