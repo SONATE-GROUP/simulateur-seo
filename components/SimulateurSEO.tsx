@@ -463,6 +463,7 @@ export default function SimulateurSEO() {
   /* Budget allocation per keyword over 12 months (sudoku-style) */
   const kwAllocations = useMemo(() => {
     const CHUNK = 200; // € per allocation step
+    const CATEGORY_ANNUAL_CAP = 20000; // € max alloué par catégorie sur l'année
     const PROX_FACTOR: Record<number, number> = { 1: 1.0, 2: 1.5, 3: 3.0 };
     const coeffSante = Math.max(0.01, computeHealthCoeff(healthScore));
 
@@ -509,6 +510,7 @@ export default function SimulateurSEO() {
     const kwFirstMonth:     Record<string, number | null> = {};
     const catActiveCount:   Record<string, number>   = {};
     const catActiveCountPerMonth: Record<string, number[]> = {};
+    const catSpent:         Record<string, number>   = {};
     keywords.forEach(kw => {
       kwBudgetPerMonth[kw.id] = Array(12).fill(0);
       kwCumBudget[kw.id]      = 0;
@@ -517,6 +519,7 @@ export default function SimulateurSEO() {
     categories.forEach(cat => {
       catActiveCount[cat.id]        = 0;
       catActiveCountPerMonth[cat.id] = Array(12).fill(0);
+      catSpent[cat.id]              = 0;
     });
 
     // 12-month allocation loop
@@ -530,7 +533,9 @@ export default function SimulateurSEO() {
 
         let remaining = monthly;
         while (remaining > 0) {
-          const chunk = Math.min(CHUNK, remaining);
+          const capRemaining = CATEGORY_ANNUAL_CAP - catSpent[cat.id];
+          if (capRemaining <= 0) break; // annual cap reached for this category
+          const chunk = Math.min(CHUNK, remaining, capRemaining);
           const nbActiveInCat = Math.max(1, catActiveCount[cat.id]);
           // Find keyword with highest potential given current cumulative budgets
           let bestKw: Keyword | null = null;
@@ -544,6 +549,7 @@ export default function SimulateurSEO() {
           const wasInactive = kwCumBudget[bestKw.id] === 0;
           kwCumBudget[bestKw.id]          += chunk;
           kwBudgetPerMonth[bestKw.id][m]  += chunk;
+          catSpent[cat.id]                += chunk;
           if (kwFirstMonth[bestKw.id] === null) kwFirstMonth[bestKw.id] = m;
           if (wasInactive) catActiveCount[cat.id]++;
           remaining -= chunk;
