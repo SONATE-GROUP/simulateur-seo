@@ -125,7 +125,7 @@ export default function ConfigurationPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {[
             { intention: 'Transactionnel', def: 4.0, description: 'Visiteur prêt à acheter / demander un devis (ex : "prix logiciel CRM")' },
-            { intention: 'Pré-achat', def: 2.0, description: 'Comparaison, sélection (ex : "meilleur logiciel CRM")' },
+            { intention: 'Navigationnelle', def: 2.0, description: 'Comparaison, sélection (ex : "meilleur logiciel CRM")' },
             { intention: 'Informationnel commercial', def: 1.0, description: 'Découverte de solutions (ex : "comment gérer sa prospection")' },
             { intention: 'Informationnel', def: 0.5, description: 'Contenu éducatif pur, peu de conversion directe' },
           ].map(({ intention, def, description }) => (

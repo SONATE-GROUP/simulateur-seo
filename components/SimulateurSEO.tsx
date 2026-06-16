@@ -66,7 +66,7 @@ const CTR_TABLE: Record<number, number> = {
 };
 
 const INTENT_LABEL: Record<number, string> = {
-  1: 'Transactionnel', 2: 'Pré-achat', 3: 'Commerciale', 4: 'Informationnel',
+  1: 'Transactionnel', 2: 'Navigationnelle', 3: 'Commerciale', 4: 'Informationnel',
 };
 
 const INTENT_COLOR: Record<number, string> = {
@@ -770,7 +770,7 @@ export default function SimulateurSEO() {
   /* ── EXCEL IMPORT ─────────────────────────────────────────── */
   const INTENT_MAP: Record<string, Intention> = {
     transactionnel: 1, transactional: 1, achat: 1, '1': 1,
-    'pré-achat': 2, 'pre-achat': 2, preachat: 2, consideration: 2, '2': 2,
+    'pré-achat': 2, 'pre-achat': 2, preachat: 2, consideration: 2, navigationnelle: 2, navigationnel: 2, '2': 2,
     intermédiaire: 3, intermediaire: 3, commerciale: 3, commercial: 3, '3': 3,
     informationnel: 4, informational: 4, information: 4, info: 4, '4': 4,
   };
@@ -1473,7 +1473,7 @@ export default function SimulateurSEO() {
                                   <select value={kw.intention} onChange={e => updateKw(kw.id, 'intention', Number(e.target.value) as Intention)}
                                     style={{ width: 100, backgroundColor: L_INPUT, border: `1px solid ${L_BORD}`, borderRadius: 3, color: L_DARK, fontSize: 11, padding: '2px 4px', outline: 'none', cursor: 'pointer' }}>
                                     <option value={1}>Transactionnel</option>
-                                    <option value={2}>Pré-achat</option>
+                                    <option value={2}>Navigationnelle</option>
                                     <option value={3}>Commerciale</option>
                                     <option value={4}>Informationnel</option>
                                   </select>
@@ -1510,7 +1510,7 @@ export default function SimulateurSEO() {
               <span style={{ color: ORANGE, fontSize: 10 }}>◆</span> Taux de conversion par intention
             </div>
             <Slider light label="Transactionnel" value={crTransactionnel} min={0} max={30} step={0.5} unit="%" onChange={v => update({ crTransactionnel: v })} />
-            <Slider light label="Pré-achat" value={crPreAchat} min={0} max={20} step={0.5} unit="%" onChange={v => update({ crPreAchat: v })} />
+            <Slider light label="Navigationnelle" value={crPreAchat} min={0} max={20} step={0.5} unit="%" onChange={v => update({ crPreAchat: v })} />
             <Slider light label="Commerciale" value={crIntermediaire} min={0} max={10} step={0.1} unit="%" onChange={v => update({ crIntermediaire: v })} />
             <Slider light label="Informationnel" value={crInformationnel} min={0} max={5} step={0.1} unit="%" onChange={v => update({ crInformationnel: v })} />
             {businessType === 'lead' && (
@@ -2343,7 +2343,7 @@ export default function SimulateurSEO() {
                 </div>
                 {([
                   ['Transactionnel', `${crTransactionnel}%`, INTENT_COLOR[1]],
-                  ['Pré-achat',      `${crPreAchat}%`,       INTENT_COLOR[2]],
+                  ['Navigationnelle', `${crPreAchat}%`,       INTENT_COLOR[2]],
                   ['Commerciale',    `${crIntermediaire}%`,  INTENT_COLOR[3]],
                   ['Informationnel', `${crInformationnel}%`, INTENT_COLOR[4]],
                 ] as [string, string, string][]).map(([label, value, color]) => (
