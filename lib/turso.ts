@@ -17,6 +17,8 @@ export async function initDb() {
     'ALTER TABLE users ADD COLUMN last_login_at TEXT',
     'ALTER TABLE users ADD COLUMN login_count INTEGER DEFAULT 0',
     'ALTER TABLE users ADD COLUMN status TEXT DEFAULT \'active\'',
+    'ALTER TABLE reports ADD COLUMN total_time_seconds INTEGER DEFAULT 0',
+    'ALTER TABLE reports ADD COLUMN interaction_count INTEGER DEFAULT 0',
   ];  for (const sql of migrations) {
     try { await db.execute(sql); } catch { /* column already exists */ }
   }
@@ -57,7 +59,9 @@ export async function initDb() {
       state_b64    TEXT NOT NULL,
       created_at   TEXT NOT NULL,
       workspace_id TEXT,
-      created_by   TEXT
+      created_by   TEXT,
+      total_time_seconds INTEGER DEFAULT 0,
+      interaction_count  INTEGER DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS invitations (

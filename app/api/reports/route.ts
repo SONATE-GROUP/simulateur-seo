@@ -61,7 +61,9 @@ export async function GET() {
         `SELECT r.id, r.prospect, r.site_url, r.sector, r.created_at, r.workspace_id,
                 w.name as workspace_name,
                 COALESCE(vs.view_count, 0) as view_count,
-                vs.last_viewed_at, vs.last_viewer_name, vs.last_viewer_email
+                vs.last_viewed_at, vs.last_viewer_name, vs.last_viewer_email,
+                COALESCE(r.total_time_seconds, 0) as total_time_seconds,
+                COALESCE(r.interaction_count, 0) as interaction_count
          FROM reports r
          LEFT JOIN workspaces w ON w.id = r.workspace_id
          LEFT JOIN ${viewSubquery} ON vs.report_id = r.id
@@ -73,7 +75,9 @@ export async function GET() {
         sql: `SELECT r.id, r.prospect, r.site_url, r.sector, r.created_at, r.workspace_id,
                      w.name as workspace_name,
                      COALESCE(vs.view_count, 0) as view_count,
-                     vs.last_viewed_at, vs.last_viewer_name, vs.last_viewer_email
+                     vs.last_viewed_at, vs.last_viewer_name, vs.last_viewer_email,
+                     COALESCE(r.total_time_seconds, 0) as total_time_seconds,
+                     COALESCE(r.interaction_count, 0) as interaction_count
               FROM reports r
               LEFT JOIN workspaces w ON w.id = r.workspace_id
               LEFT JOIN ${viewSubquery} ON vs.report_id = r.id
@@ -99,6 +103,8 @@ export async function GET() {
       lastViewedAt:     r[8] as string | null,
       lastViewerName:   r[9] as string | null,
       lastViewerEmail:  r[10] as string | null,
+      totalTimeSeconds: Number(r[11]) || 0,
+      interactionCount: Number(r[12]) || 0,
     })));
   } catch (err) {
     console.error('[reports GET]', err);

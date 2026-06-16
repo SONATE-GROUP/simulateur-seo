@@ -23,6 +23,17 @@ interface Report {
   lastViewedAt: string | null;
   lastViewerName: string | null;
   lastViewerEmail: string | null;
+  totalTimeSeconds: number;
+  interactionCount: number;
+}
+
+function fmtDuration(totalSeconds: number) {
+  if (totalSeconds <= 0) return '-';
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.round((totalSeconds % 3600) / 60);
+  if (h > 0) return `${h} h ${m} min`;
+  if (m > 0) return `${m} min`;
+  return `${totalSeconds} s`;
 }
 
 interface Workspace {
@@ -128,8 +139,8 @@ export default function RapportsPage() {
   }
 
   const cols = canMove
-    ? '1fr 1fr 140px 48px 130px 150px 80px 80px 80px'
-    : '1fr 1fr 140px 48px 130px 150px 100px 80px';
+    ? '1fr 1fr 140px 48px 90px 80px 130px 150px 80px 80px 80px'
+    : '1fr 1fr 140px 48px 90px 80px 130px 150px 100px 80px';
 
   return (
     <div style={{ maxWidth: 1080 }}>
@@ -179,7 +190,8 @@ export default function RapportsPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 12, padding: '8px 16px', color: '#5a7a6a', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
             <span>Prospect</span><span>Site</span><span>Espace client</span>
-            <span title="Vues">Vues</span><span>Dernière consult.</span><span>Création</span>
+            <span title="Vues">Vues</span><span title="Temps passé total">Temps passé</span><span title="Nombre d'interactions (clics, saisies)">Interactions</span>
+            <span>Dernière consult.</span><span>Création</span>
             {canMove && <span></span>}<span></span><span></span>
           </div>
 
@@ -202,6 +214,12 @@ export default function RapportsPage() {
               </span>
               <span style={{ fontSize: 12, fontWeight: 700, textAlign: 'center', color: r.viewCount > 0 ? '#4caf7d' : '#3a5c4e' }} title={r.viewCount > 0 ? `${r.viewCount} consultation${r.viewCount > 1 ? 's' : ''}` : 'Jamais consulté'}>
                 {r.viewCount > 0 ? r.viewCount : '-'}
+              </span>
+              <span style={{ fontSize: 11, color: r.totalTimeSeconds > 0 ? '#7a9e8e' : '#3a5c4e' }}>
+                {fmtDuration(r.totalTimeSeconds)}
+              </span>
+              <span style={{ fontSize: 12, fontWeight: 600, textAlign: 'center', color: r.interactionCount > 0 ? '#7a9e8e' : '#3a5c4e' }}>
+                {r.interactionCount > 0 ? r.interactionCount : '-'}
               </span>
               <span style={{ fontSize: 11 }}>
                 {r.lastViewedAt ? (
