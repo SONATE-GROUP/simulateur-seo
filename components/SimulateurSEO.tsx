@@ -2122,8 +2122,6 @@ export default function SimulateurSEO() {
                     />
                   ))}
                 </Bar>
-                <ReferenceLine x="M4" stroke={ORANGE} strokeDasharray="4 4" strokeWidth={1.5} />
-                <ReferenceLine x="M6" stroke="#3b82f6" strokeDasharray="4 4" strokeWidth={1.5} />
               </BarChart>
             </ResponsiveContainer>
             <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 10, color: '#5a7a6a' }}>
