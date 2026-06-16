@@ -95,12 +95,13 @@ const BUDGET_DAMP_EXP    = 1.35; // >1 → stronger damping before the keyword h
 const ACCEL_PER_KW       = 0.35; // synergy boost per extra funded keyword in category
 const ACCEL_KW_EXP       = 1.2;  // non-linear acceleration as the cluster gets covered
 const MAX_CATEGORY_ACCEL = 3.5;  // cap to keep large keyword lists realistic
+const BUDGET_IMPACT_DIVISOR = 4; // global reduction of budget impact on positions
 function computeLogBudget(cumBudget: number, nbActiveInCat: number): number {
   if (cumBudget <= 0) return 0;
   const activeBoost = Math.pow(Math.max(0, nbActiveInCat - 1), ACCEL_KW_EXP);
   const categoryAccel = Math.min(MAX_CATEGORY_ACCEL, 1 + ACCEL_PER_KW * activeBoost);
   const damping = Math.pow(cumBudget / (cumBudget + BUDGET_THRESH), BUDGET_DAMP_EXP);
-  return Math.log(1 + cumBudget / 20) * damping * categoryAccel;
+  return (Math.log(1 + cumBudget / 20) * damping * categoryAccel) / BUDGET_IMPACT_DIVISOR;
 }
 
 // Piecewise-linear coefficient from the Semrush Health Score:

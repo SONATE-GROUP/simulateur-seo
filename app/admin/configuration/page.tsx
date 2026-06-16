@@ -78,7 +78,7 @@ export default function ConfigurationPage() {
 budgetCumulé    = budget réellement alloué au mot-clé
 freinBudget     = (budgetCumulé / (budgetCumulé + 500))^1.35
 accelCatégorie  = min(3.5, 1 + 0.35 × (motsClésAvecBudget − 1)^1.2)
-logBudget       = ln(1 + budgetCumulé / 20) × freinBudget × accelCatégorie
+logBudget       = (ln(1 + budgetCumulé / 20) × freinBudget × accelCatégorie) / 4
 dénominateur    = 225 × DA × (coeffSante / 70) × √(nbMotsClés) × logBudget
 posRaw          = (difficulté^1.9 × facteurProximité) / dénominateur
 position        = clamp(round(posRaw), 1, 11)`}
@@ -94,6 +94,7 @@ position        = clamp(round(posRaw), 1, 11)`}
               { label: 'Frein petits budgets', value: '500 € ^ 1.35' },
               { label: 'Accélération catégorie', value: '0.35 × mots-clés^1.2' },
               { label: 'Plafond accélération', value: '3.5×' },
+              { label: 'Division impact budget', value: '÷ 4' },
             ].map(({ label, value }) => (
               <div key={label} style={{ backgroundColor: G5, borderRadius: 8, padding: '10px 16px', fontSize: 13, flex: '1 1 160px' }}>
                 <div style={{ color: MUTED, fontSize: 11, marginBottom: 4 }}>{label}</div>
