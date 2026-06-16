@@ -425,6 +425,15 @@ export default function SimulateurSEO() {
   const resultsRef  = useRef<HTMLDivElement>(null);
   const xlsxInputRef = useRef<HTMLInputElement>(null);
 
+  /* Unsaved-changes tracking — skipDirtyRef ignores state changes caused by
+     the initial load (URL/report fetch) so only real user edits count. */
+  const [isDirty, setIsDirty] = useState(false);
+  const skipDirtyRef = useRef(true);
+  useEffect(() => {
+    if (skipDirtyRef.current) { skipDirtyRef.current = false; return; }
+    setIsDirty(true);
+  }, [state]);
+
   const toggleCat = (id: string) => setOpenCats(prev => {
     const next = new Set(prev);
     next.has(id) ? next.delete(id) : next.add(id);
@@ -457,12 +466,12 @@ export default function SimulateurSEO() {
       breakEvenMode: s.breakEvenMode ?? 'mensuel',
     });
     if (data) {
-      try { setState(migrate(decodeState(data))); } catch { /* ignore */ }
+      try { skipDirtyRef.current = true; setState(migrate(decodeState(data))); } catch { /* ignore */ }
     } else if (report) {
       setReportId(report);
       fetch(`/api/reports/${report}`)
         .then(r => r.json())
-        .then(({ stateB64 }) => { if (stateB64) setState(migrate(decodeState(stateB64))); })
+        .then(({ stateB64 }) => { if (stateB64) { skipDirtyRef.current = true; setState(migrate(decodeState(stateB64))); } })
         .catch(() => { /* ignore */ });
     }
   }, []);
@@ -989,6 +998,7 @@ export default function SimulateurSEO() {
         navigator.clipboard.writeText(`${location.origin}${location.pathname}?report=${id}`);
       }
       setSaveState('saved');
+      setIsDirty(false);
       setTimeout(() => setSaveState('idle'), 3000);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -1282,6 +1292,13 @@ export default function SimulateurSEO() {
           {(session?.user?.isGlobalAdmin || workspaces.some(w => w.role === 'owner')) && (
             <a
               href="/admin/rapports"
+              onClick={e => {
+                if (isDirty && !window.confirm(
+                  'Vous avez des modifications non enregistrées. Si vous quittez maintenant, elles seront perdues. Continuer sans enregistrer ?'
+                )) {
+                  e.preventDefault();
+                }
+              }}
               style={{
                 backgroundColor: 'transparent', border: `1px solid ${G3}`,
                 borderRadius: 6, padding: '7px 14px', color: G2,
@@ -2344,7 +2361,7 @@ export default function SimulateurSEO() {
                   </div>
                 ))}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', marginTop: 2 }}>
-                  <span style={{ color: ORANGE, fontSize: 12, fontWeight: 700 }}>Total mensuel</span>
+                  <span style={{ color: ORANGE, fontSize: 12, fontWeight: 700 }}>Total budget mensuel</span>
                   <span style={{ color: ORANGE, fontSize: 13, fontWeight: 700 }}>{fmtC(totals.budgetMensuel)}<span style={{ fontSize: 10, fontWeight: 400 }}> /mois</span></span>
                 </div>
 
