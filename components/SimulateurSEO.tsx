@@ -2039,7 +2039,7 @@ export default function SimulateurSEO() {
           {/* BLOC 4b — LEADS PAR MOIS */}
           <div style={{ marginBottom: 14 }}>
             <div style={{ ...secTitle, marginBottom: 10 }}>
-              <span style={{ color: ORANGE, fontSize: 10 }}>◆</span> {businessType === 'ecommerce' ? 'Évolution du CPA (coût d\'acquisition)' : 'Leads captés par mois'} : 12 mois
+              <span style={{ color: ORANGE, fontSize: 10 }}>◆</span> Évolution du CPA (coût d'acquisition) : 12 mois
             </div>
             <ResponsiveContainer width="100%" height={220}>
               <ComposedChart data={monthlyData} margin={{ top: 8, right: 48, left: 0, bottom: 4 }}>
