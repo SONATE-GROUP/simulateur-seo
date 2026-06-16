@@ -69,6 +69,19 @@ const INTENT_COLOR: Record<number, string> = {
   1: '#e8571a', 2: '#f59e0b', 3: '#3b82f6', 4: '#6b7280',
 };
 
+// Budget → "ranking power" curve: weak effect on the first euros spent on a
+// keyword, then accelerates as more keywords in the same category get budget
+// (topical authority synergy).
+const BUDGET_THRESH   = 150;  // € — diminishing-returns threshold for early spend
+const BUDGET_EXP      = 1.6;  // >1 → early € count less, later € count more
+const ACCEL_PER_KW    = 0.25; // synergy boost per extra funded keyword in category
+function computeLogBudget(cumBudget: number, nbActiveInCat: number): number {
+  if (cumBudget <= 0) return 0;
+  const synergy   = 1 + ACCEL_PER_KW * Math.max(0, nbActiveInCat - 1);
+  const effBudget = cumBudget * synergy;
+  return Math.log(1 + Math.pow(effBudget / BUDGET_THRESH, BUDGET_EXP) / 20);
+}
+
 const DEFAULT_KEYWORDS: Keyword[] = [
   { id: '1', keyword: 'acheter graines tomates',   volume: 2400, difficulty: 35, proximity: 1, intention: 1, topic: 'Graines tomates', categoryId: 'cat1' },
   { id: '2', keyword: 'meilleures graines potager', volume: 1800, difficulty: 42, proximity: 2, intention: 2, topic: 'Graines potager', categoryId: 'cat1' },
@@ -453,10 +466,11 @@ export default function SimulateurSEO() {
     });
     keywords.forEach(kw => { if (catNbKws[kw.categoryId] !== undefined) catNbKws[kw.categoryId]++; });
 
-    // Compute posRaw for a keyword given its individual cumulative budget
-    const getPosRaw = (kw: Keyword, cumBudget: number): number => {
+    // Compute posRaw for a keyword given its individual cumulative budget and
+    // how many keywords in its category currently have budget activated
+    const getPosRaw = (kw: Keyword, cumBudget: number, nbActiveInCat: number): number => {
       const nb  = Math.max(1, catNbKws[kw.categoryId] ?? 1);
-      const lb  = Math.log(1 + Math.max(0, cumBudget) / 20);
+      const lb  = computeLogBudget(cumBudget, nbActiveInCat);
       if (lb === 0) return 100;
       const den = 225 * da * (coeffSante / 70) * Math.sqrt(nb) * lb;
       return den > 0 ? (Math.pow(kw.difficulty, 1.9) * (PROX_FACTOR[kw.proximity] ?? 1)) / den : 100;
@@ -464,8 +478,8 @@ export default function SimulateurSEO() {
     const getPos = (raw: number) => Math.min(Math.max(Math.round(raw), 1), 11);
 
     // Potential = Volume × cr[intention] × proximity × ΔCTR / difficulty²
-    const getPotential = (kw: Keyword, cumBudget: number): number => {
-      const pos = getPos(getPosRaw(kw, cumBudget));
+    const getPotential = (kw: Keyword, cumBudget: number, nbActiveInCat: number): number => {
+      const pos = getPos(getPosRaw(kw, cumBudget, nbActiveInCat));
       if (pos <= 1) return 0; // already at best position
       const gain = (CTR_TABLE[pos - 1] ?? 0) - (CTR_TABLE[pos] ?? 0);
       if (gain <= 0) return 0;
@@ -478,10 +492,16 @@ export default function SimulateurSEO() {
     const kwBudgetPerMonth: Record<string, number[]> = {};
     const kwCumBudget:      Record<string, number>   = {};
     const kwFirstMonth:     Record<string, number | null> = {};
+    const catActiveCount:   Record<string, number>   = {};
+    const catActiveCountPerMonth: Record<string, number[]> = {};
     keywords.forEach(kw => {
       kwBudgetPerMonth[kw.id] = Array(12).fill(0);
       kwCumBudget[kw.id]      = 0;
       kwFirstMonth[kw.id]     = null;
+    });
+    categories.forEach(cat => {
+      catActiveCount[cat.id]        = 0;
+      catActiveCountPerMonth[cat.id] = Array(12).fill(0);
     });
 
     // 12-month allocation loop
@@ -496,21 +516,26 @@ export default function SimulateurSEO() {
         let remaining = monthly;
         while (remaining > 0) {
           const chunk = Math.min(CHUNK, remaining);
+          const nbActiveInCat = Math.max(1, catActiveCount[cat.id]);
           // Find keyword with highest potential given current cumulative budgets
           let bestKw: Keyword | null = null;
           let bestPot = -Infinity;
           for (const kw of catKws) {
-            const pot = getPotential(kw, kwCumBudget[kw.id]);
+            const pot = getPotential(kw, kwCumBudget[kw.id], nbActiveInCat);
             if (pot > bestPot) { bestPot = pot; bestKw = kw; }
           }
           if (!bestKw || bestPot <= 0) break;
 
+          const wasInactive = kwCumBudget[bestKw.id] === 0;
           kwCumBudget[bestKw.id]          += chunk;
           kwBudgetPerMonth[bestKw.id][m]  += chunk;
           if (kwFirstMonth[bestKw.id] === null) kwFirstMonth[bestKw.id] = m;
+          if (wasInactive) catActiveCount[cat.id]++;
           remaining -= chunk;
         }
       });
+      // Snapshot active-keyword count per category at the end of month m
+      categories.forEach(cat => { catActiveCountPerMonth[cat.id][m] = catActiveCount[cat.id]; });
     }
 
     // Build result map
@@ -521,6 +546,8 @@ export default function SimulateurSEO() {
       totalBudget: number;
       catCoeff: number;
       nbKwsInCat: number;
+      activeKwsPerMonth: number[];
+      totalActiveKws: number;
     }> = {};
     keywords.forEach(kw => {
       const bpm = kwBudgetPerMonth[kw.id];
@@ -528,10 +555,13 @@ export default function SimulateurSEO() {
         acc.push((acc[acc.length - 1] ?? 0) + b);
         return acc;
       }, []);
+      const activeKwsPerMonth = catActiveCountPerMonth[kw.categoryId] ?? Array(12).fill(1);
       result[kw.id] = {
         budgetPerMonth:     bpm,
         cumulativePerMonth: cpm,
         firstMonthIdx:      kwFirstMonth[kw.id],
+        activeKwsPerMonth,
+        totalActiveKws:     activeKwsPerMonth[11] ?? 1,
         totalBudget:        cpm[11] ?? 0,
         catCoeff:           catCoeff[kw.categoryId] ?? 1,
         nbKwsInCat:         catNbKws[kw.categoryId] ?? 1,
@@ -551,16 +581,18 @@ export default function SimulateurSEO() {
       const coeff    = alloc?.catCoeff ?? 1;
       const totalBudget = alloc?.totalBudget ?? 0;
 
-      // Position at M+12 (full year cumulative budget)
-      const lb12   = Math.log(1 + Math.max(0, totalBudget) / 20);
+      // Position at M+12 (full year cumulative budget + active-keyword synergy)
+      const totalActiveKws = alloc?.totalActiveKws ?? 1;
+      const lb12   = computeLogBudget(totalBudget, totalActiveKws);
       const den12  = lb12 > 0 ? 225 * da * (coeffSante / 70) * Math.sqrt(nb) * lb12 : 0;
       const posRaw = den12 > 0 ? (Math.pow(kw.difficulty, 1.9) * (PROX_FACTOR[kw.proximity] ?? 1)) / den12 : 100;
       const pos    = Math.min(Math.max(Math.round(posRaw), 1), 11);
 
-      // Monthly positions based on actual cumulative budget at each month end
-      const monthlyPos = (alloc?.cumulativePerMonth ?? Array(12).fill(0)).map(cumBudget => {
+      // Monthly positions based on actual cumulative budget + active-keyword count at each month
+      const activeKwsPerMonth = alloc?.activeKwsPerMonth ?? Array(12).fill(1);
+      const monthlyPos = (alloc?.cumulativePerMonth ?? Array(12).fill(0)).map((cumBudget, i) => {
         if (cumBudget === 0) return 11;
-        const lb = Math.log(1 + cumBudget / 20);
+        const lb = computeLogBudget(cumBudget, activeKwsPerMonth[i] ?? 1);
         const d  = lb > 0 ? 225 * da * (coeffSante / 70) * Math.sqrt(nb) * lb : 0;
         const pr = d > 0 ? (Math.pow(kw.difficulty, 1.9) * (PROX_FACTOR[kw.proximity] ?? 1)) / d : 100;
         return Math.min(Math.max(Math.round(pr), 1), 11);
