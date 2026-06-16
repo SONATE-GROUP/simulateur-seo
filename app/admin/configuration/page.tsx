@@ -68,7 +68,7 @@ export default function ConfigurationPage() {
       </div>
 
       <div style={{ backgroundColor: '#1a3d2e', border: `1px solid ${GREEN}33`, borderRadius: 10, padding: '14px 18px', marginBottom: 32, fontSize: 13, color: MUTED, lineHeight: 1.6 }}>
-        <strong style={{ color: GREEN }}>Zone admin</strong> — Ces paramètres définissent le comportement du simulateur.
+        <strong style={{ color: GREEN }}>Zone admin</strong> : Ces paramètres définissent le comportement du simulateur.
         Toute modification impacterait tous les nouveaux rapports générés. L'édition sera disponible dans une prochaine version.
       </div>
 
@@ -96,7 +96,7 @@ export default function ConfigurationPage() {
             <div key={position} style={{ backgroundColor: G5, borderRadius: 8, padding: '12px 14px', textAlign: 'center', border: `1px solid ${position <= 3 ? GREEN + '44' : G3}` }}>
               <div style={{ fontSize: 11, color: MUTED, marginBottom: 4 }}>Position {position}</div>
               <div style={{ fontSize: 20, fontWeight: 700, color: position === 1 ? GREEN : position <= 3 ? '#a8d5b5' : CREAM, fontFamily: 'monospace' }}>
-                {ctr > 0 ? `${ctr}%` : '—'}
+                {ctr > 0 ? `${ctr}%` : '-'}
               </div>
             </div>
           ))}
@@ -125,7 +125,7 @@ export default function ConfigurationPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {[
             { intention: 'Transactionnel', def: 4.0, description: 'Visiteur prêt à acheter / demander un devis (ex : "prix logiciel CRM")' },
-            { intention: 'Pré-achat', def: 2.0, description: 'Comparaison, sélection (ex : "meilleur logiciel CRM")' },
+            { intention: 'Navigationnelle', def: 2.0, description: 'Comparaison, sélection (ex : "meilleur logiciel CRM")' },
             { intention: 'Informationnel commercial', def: 1.0, description: 'Découverte de solutions (ex : "comment gérer sa prospection")' },
             { intention: 'Informationnel', def: 0.5, description: 'Contenu éducatif pur, peu de conversion directe' },
           ].map(({ intention, def, description }) => (
@@ -153,7 +153,7 @@ export default function ConfigurationPage() {
             </div>
           ))}
         </div>
-        <div style={{ fontSize: 12, color: MUTED }}>À M12 le potentiel est à 92% — la pleine maturité est atteinte au cours de l'année 2.</div>
+        <div style={{ fontSize: 12, color: MUTED }}>À M12 le potentiel est à 92%. La pleine maturité est atteinte au cours de l'année 2.</div>
       </SectionCard>
 
       <SectionCard title="Formules de calcul du ROI" description="Le ROI est calculé sur la base du CA mensuel à pleine maturité, pondéré par les mois effectifs d'activité.">

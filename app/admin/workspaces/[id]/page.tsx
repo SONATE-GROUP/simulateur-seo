@@ -211,7 +211,7 @@ export default function WorkspaceDetailPage() {
         </div>
       )}
 
-      <h2 style={{ fontSize: 13, fontWeight: 700, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7a9e8e' }}>Membres — {members.length}</h2>
+      <h2 style={{ fontSize: 13, fontWeight: 700, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7a9e8e' }}>Membres : {members.length}</h2>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 28 }}>
         {members.map(m => (
           <div key={m.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: G5, borderRadius: 10, padding: '14px 18px', border: `1px solid ${G3}` }}>
@@ -239,7 +239,7 @@ export default function WorkspaceDetailPage() {
         ))}
       </div>
 
-      <h2 style={{ fontSize: 13, fontWeight: 700, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7a9e8e' }}>Rapports — {reports.length}</h2>
+      <h2 style={{ fontSize: 13, fontWeight: 700, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7a9e8e' }}>Rapports : {reports.length}</h2>
       {reports.length === 0 ? (
         <div style={{ backgroundColor: G5, borderRadius: 10, padding: '20px 18px', color: '#5a7a6a', fontSize: 13, fontStyle: 'italic', border: `1px solid ${G3}` }}>Aucun rapport rattaché à cet espace.</div>
       ) : (
@@ -250,8 +250,8 @@ export default function WorkspaceDetailPage() {
           {reports.map(r => (
             <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 100px 60px', gap: 10, alignItems: 'center', backgroundColor: G5, borderRadius: 8, padding: '11px 16px', border: `1px solid ${G3}` }}>
               <span style={{ fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.prospect || <span style={{ color: '#5a7a6a', fontStyle: 'italic' }}>Sans nom</span>}</span>
-              <span style={{ color: '#7a9e8e', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.siteUrl || '—'}</span>
-              <span style={{ color: '#7a9e8e', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.sector || '—'}</span>
+              <span style={{ color: '#7a9e8e', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.siteUrl || '-'}</span>
+              <span style={{ color: '#7a9e8e', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.sector || '-'}</span>
               <span style={{ color: '#5a7a6a', fontSize: 11 }}>{fmtDate(r.createdAt)}</span>
               <a href={`/?report=${r.id}`} style={{ backgroundColor: G4, color: CREAM, borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 600, textDecoration: 'none', textAlign: 'center', display: 'block' }}>Ouvrir</a>
             </div>

@@ -4,7 +4,7 @@ import Providers from './providers';
 
 export const metadata: Metadata = {
   title: 'Sonate - SEO',
-  description: 'Simulateur de potentiel SEO — projetez votre ROI organique',
+  description: 'Simulateur de potentiel SEO : projetez votre ROI organique',
   icons: { icon: '/icon.png' },
 };
 

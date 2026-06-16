@@ -105,7 +105,7 @@ export async function PATCH(
           args: [currentWorkspaceId, session.user.id],
         });
         const role = check.rows[0]?.[0] as string | undefined;
-        if (role !== 'owner') return NextResponse.json({ error: 'Accès refusé — propriétaire requis' }, { status: 403 });
+        if (role !== 'owner') return NextResponse.json({ error: 'Accès refusé : propriétaire requis' }, { status: 403 });
       } else {
         // Report not in any workspace: only creator can move it
         const createdBy = reportRes.rows[0][1] as string;

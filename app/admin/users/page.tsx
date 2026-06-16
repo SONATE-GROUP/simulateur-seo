@@ -35,7 +35,7 @@ const STATUS_COLOR: Record<string, string> = { pending: '#d4a820', accepted: '#4
 const STATUS_BG:    Record<string, string> = { pending: '#d4a82022', accepted: '#4caf7d22', expired: '#88888822' };
 
 function fmt(iso: string | null | undefined) {
-  if (!iso) return '—';
+  if (!iso) return '-';
   return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' });
 }
 
@@ -243,7 +243,7 @@ export default function UsersPage() {
             {invitations.map(inv => (
               <div key={inv.id} style={{ display: 'grid', gridTemplateColumns: '1fr 160px 130px 100px 100px 100px', gap: 10, alignItems: 'center', backgroundColor: G5, borderRadius: 10, padding: '12px 16px', border: `1px solid ${G3}` }}>
                 <span style={{ fontSize: 13, color: '#7a9e8e' }}>{inv.email}</span>
-                <span style={{ fontSize: 12, color: '#5a7a6a' }}>{inv.workspaceName || '—'}</span>
+                <span style={{ fontSize: 12, color: '#5a7a6a' }}>{inv.workspaceName || '-'}</span>
                 <span><span style={{ backgroundColor: STATUS_BG[inv.status], color: STATUS_COLOR[inv.status], border: `1px solid ${STATUS_COLOR[inv.status]}44`, borderRadius: 6, padding: '3px 8px', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>{STATUS_LABEL[inv.status]}</span></span>
                 <span style={{ fontSize: 11, color: '#5a7a6a' }}>{fmt(inv.createdAt)}</span>
                 <span style={{ fontSize: 11, color: '#5a7a6a' }}>{inv.status === 'accepted' ? fmt(inv.acceptedAt) : fmt(inv.expiresAt)}</span>
@@ -283,7 +283,7 @@ export default function UsersPage() {
             {users.map(u => (
               <div key={u.id}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 130px 72px 100px 100px 80px 80px', gap: 10, alignItems: 'center', backgroundColor: G5, borderRadius: expandedUser === u.id ? '10px 10px 0 0' : 10, padding: '12px 16px', border: `1px solid ${expandedUser === u.id ? G4 : G3}` }}>
-                  <span style={{ fontWeight: 600, fontSize: 13 }}>{u.name || <span style={{ color: '#5a7a6a', fontStyle: 'italic' }}>—</span>}</span>
+                  <span style={{ fontWeight: 600, fontSize: 13 }}>{u.name || <span style={{ color: '#5a7a6a', fontStyle: 'italic' }}>-</span>}</span>
                   <span style={{ color: '#7a9e8e', fontSize: 12 }}>{u.email}</span>
                   <span>
                     {u.id !== session?.user?.id ? (
@@ -365,7 +365,7 @@ export default function UsersPage() {
                     {item.userName && <span style={{ fontSize: 11, color: '#5a7a6a', minWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.userEmail}</span>}
                     {item.type === 'report_view' && (
                       <span style={{ fontSize: 12, color: '#7a9e8e', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        <Link href={`/?report=${item.reportId}`} style={{ color: '#7a9e8e', textDecoration: 'none' }}>{item.prospect || 'Sans nom'}{item.siteUrl ? ` — ${item.siteUrl}` : ''}</Link>
+                        <Link href={`/?report=${item.reportId}`} style={{ color: '#7a9e8e', textDecoration: 'none' }}>{item.prospect || 'Sans nom'}{item.siteUrl ? ` (${item.siteUrl})` : ''}</Link>
                       </span>
                     )}
                     {item.type === 'login' && <span style={{ fontSize: 11, color: '#5a7a6a', flex: 1 }}>{item.loginCount} connexion{item.loginCount > 1 ? 's' : ''} au total{item.firstLogin && ` · 1re : ${fmt(item.firstLogin)}`}</span>}
