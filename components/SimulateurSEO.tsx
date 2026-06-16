@@ -86,21 +86,21 @@ const INTENT_COLOR: Record<number, string> = {
   1: '#e8571a', 2: '#f59e0b', 3: '#3b82f6', 4: '#6b7280',
 };
 
-// Budget → "ranking power" curve: weak effect on the first euros spent on a
-// keyword, then accelerates as more keywords in the same category get budget
-// (topical authority synergy). The damping factor fades in smoothly so early
-// spend is softened without being multiplied away entirely — otherwise
-// low-DA sites never accumulate enough effective budget to leave the
-// worst-rank zone and the whole simulation reports 0 traffic/CA.
-const BUDGET_THRESH   = 150;  // € — diminishing-returns threshold for early spend
-const BUDGET_DAMP_EXP = 0.5;  // <1 → damping fades in gradually as budget grows
-const ACCEL_PER_KW    = 0.25; // synergy boost per extra funded keyword in category
+// Budget → "ranking power" curve: the first euros spent on a keyword are
+// intentionally under-powered, then the curve accelerates once the category
+// has several keywords with budget. This avoids unrealistic early jumps in
+// ranking while rewarding topical authority built by treating a cluster.
+const BUDGET_THRESH      = 500;  // € — higher threshold = slower impact on small budgets
+const BUDGET_DAMP_EXP    = 1.35; // >1 → stronger damping before the keyword has traction
+const ACCEL_PER_KW       = 0.35; // synergy boost per extra funded keyword in category
+const ACCEL_KW_EXP       = 1.2;  // non-linear acceleration as the cluster gets covered
+const MAX_CATEGORY_ACCEL = 3.5;  // cap to keep large keyword lists realistic
 function computeLogBudget(cumBudget: number, nbActiveInCat: number): number {
   if (cumBudget <= 0) return 0;
-  const synergy   = 1 + ACCEL_PER_KW * Math.max(0, nbActiveInCat - 1);
-  const effBudget = cumBudget * synergy;
-  const damping   = Math.pow(effBudget / (effBudget + BUDGET_THRESH), BUDGET_DAMP_EXP);
-  return Math.log(1 + effBudget / 20) * damping;
+  const activeBoost = Math.pow(Math.max(0, nbActiveInCat - 1), ACCEL_KW_EXP);
+  const categoryAccel = Math.min(MAX_CATEGORY_ACCEL, 1 + ACCEL_PER_KW * activeBoost);
+  const damping = Math.pow(cumBudget / (cumBudget + BUDGET_THRESH), BUDGET_DAMP_EXP);
+  return Math.log(1 + cumBudget / 20) * damping * categoryAccel;
 }
 
 // Piecewise-linear coefficient from the Semrush Health Score:
