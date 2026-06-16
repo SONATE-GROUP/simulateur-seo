@@ -2344,7 +2344,7 @@ export default function SimulateurSEO() {
                   </div>
                 ))}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', marginTop: 2 }}>
-                  <span style={{ color: ORANGE, fontSize: 12, fontWeight: 700 }}>Total mensuel</span>
+                  <span style={{ color: ORANGE, fontSize: 12, fontWeight: 700 }}>Total budget mensuel</span>
                   <span style={{ color: ORANGE, fontSize: 13, fontWeight: 700 }}>{fmtC(totals.budgetMensuel)}<span style={{ fontSize: 10, fontWeight: 400 }}> /mois</span></span>
                 </div>
 
