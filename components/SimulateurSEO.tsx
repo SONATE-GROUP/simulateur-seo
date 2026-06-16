@@ -19,6 +19,8 @@ interface Category {
   coeff?: 1 | 2 | 5 | 10 | 20;
 }
 
+type Zone = 'chalandise' | 'france';
+
 interface Keyword {
   id: string;
   keyword: string;
@@ -28,6 +30,7 @@ interface Keyword {
   intention: Intention;
   topic: string;
   categoryId: string;
+  zone: Zone;
 }
 
 interface SimState {
@@ -53,6 +56,7 @@ interface SimState {
   tauxClosing: number;
   categories: Category[];
   budgetCatsHidden: boolean;
+  chalandisePercent: number;
 }
 
 /* ─── CONSTANTS ──────────────────────────────────────────────── */
@@ -94,13 +98,20 @@ function computeHealthCoeff(score: number): number {
 }
 
 const DEFAULT_KEYWORDS: Keyword[] = [
-  { id: '1', keyword: 'acheter graines tomates',   volume: 2400, difficulty: 35, proximity: 1, intention: 1, topic: 'Graines tomates', categoryId: 'cat1' },
-  { id: '2', keyword: 'meilleures graines potager', volume: 1800, difficulty: 42, proximity: 2, intention: 2, topic: 'Graines potager', categoryId: 'cat1' },
-  { id: '3', keyword: 'semences bio pas cher',      volume: 3200, difficulty: 38, proximity: 1, intention: 1, topic: 'Semences bio',    categoryId: 'cat1' },
-  { id: '4', keyword: 'comment semer des fleurs',   volume: 5400, difficulty: 25, proximity: 3, intention: 4, topic: 'Guide semis',     categoryId: 'cat2' },
-  { id: '5', keyword: 'graines de courge',           volume: 2100, difficulty: 30, proximity: 2, intention: 2, topic: 'Graines courge',  categoryId: 'cat1' },
-  { id: '6', keyword: 'jardinerie en ligne',         volume: 8900, difficulty: 65, proximity: 3, intention: 1, topic: 'Jardinerie',      categoryId: 'cat2' },
+  { id: '1', keyword: 'acheter graines tomates',   volume: 2400, difficulty: 35, proximity: 1, intention: 1, topic: 'Graines tomates', categoryId: 'cat1', zone: 'chalandise' },
+  { id: '2', keyword: 'meilleures graines potager', volume: 1800, difficulty: 42, proximity: 2, intention: 2, topic: 'Graines potager', categoryId: 'cat1', zone: 'chalandise' },
+  { id: '3', keyword: 'semences bio pas cher',      volume: 3200, difficulty: 38, proximity: 1, intention: 1, topic: 'Semences bio',    categoryId: 'cat1', zone: 'chalandise' },
+  { id: '4', keyword: 'comment semer des fleurs',   volume: 5400, difficulty: 25, proximity: 3, intention: 4, topic: 'Guide semis',     categoryId: 'cat2', zone: 'chalandise' },
+  { id: '5', keyword: 'graines de courge',           volume: 2100, difficulty: 30, proximity: 2, intention: 2, topic: 'Graines courge',  categoryId: 'cat1', zone: 'chalandise' },
+  { id: '6', keyword: 'jardinerie en ligne',         volume: 8900, difficulty: 65, proximity: 3, intention: 1, topic: 'Jardinerie',      categoryId: 'cat2', zone: 'chalandise' },
 ];
+
+// Effective monthly volume after applying the catchment-area correction:
+// "chalandise" keywords keep 100% of their volume, "france" keywords are
+// scaled down to the share of the French population actually concerned.
+function getEffectiveVolume(kw: Keyword, chalandisePercent: number): number {
+  return kw.zone === 'france' ? kw.volume * (chalandisePercent / 100) : kw.volume;
+}
 
 const MONTH_NAMES = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
 
@@ -134,6 +145,7 @@ const INITIAL: SimState = {
   tauxClosing: 30,
   categories: [],
   budgetCatsHidden: false,
+  chalandisePercent: 100,
 };
 
 /* ─── PALETTE ────────────────────────────────────────────────── */
@@ -418,6 +430,7 @@ export default function SimulateurSEO() {
     budgetRatio,
     seasonalityEnabled, startMonth, highSeasonMonths, highSeasonMultiplier,
     kwMultiplier, businessType, tauxRdv, tauxClosing, categories, budgetCatsHidden,
+    chalandisePercent,
   } = state;
 
   const cr: Record<Intention, number> = {
@@ -432,6 +445,8 @@ export default function SimulateurSEO() {
     const migrate = (s: SimState): SimState => ({
       ...s,
       categories: (s.categories ?? []).map(c => ({ ...c, budget: c.budget ?? 700 })),
+      keywords: (s.keywords ?? []).map(k => ({ ...k, zone: k.zone ?? 'chalandise' })),
+      chalandisePercent: s.chalandisePercent ?? 100,
     });
     if (data) {
       try { setState(migrate(decodeState(data))); } catch { /* ignore */ }
@@ -501,7 +516,7 @@ export default function SimulateurSEO() {
       const crVal = cr[kw.intention as Intention]; // already in %
       const diff2 = (kw.difficulty || 1) * (kw.difficulty || 1);
       const proxWeight = POTENTIAL_PROX_WEIGHT[kw.proximity] ?? 1;
-      return kw.volume * crVal * proxWeight * gain / diff2;
+      return getEffectiveVolume(kw, chalandisePercent) * crVal * proxWeight * gain / diff2;
     };
 
     // Initialize per-keyword tracking
@@ -589,7 +604,7 @@ export default function SimulateurSEO() {
       };
     });
     return result;
-  }, [keywords, categories, da, healthScore, budgetRatio, crTransactionnel, crPreAchat, crIntermediaire, crInformationnel]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [keywords, categories, da, healthScore, budgetRatio, crTransactionnel, crPreAchat, crIntermediaire, crInformationnel, chalandisePercent]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* Per-keyword results */
   const kwResults = useMemo(() => {
@@ -621,7 +636,7 @@ export default function SimulateurSEO() {
 
       const baseCtr = CTR_TABLE[pos] ?? 0;
       const ctr     = baseCtr * (budgetRatio / 100);
-      const traffic = kw.volume * ctr * coeff;
+      const traffic = getEffectiveVolume(kw, chalandisePercent) * ctr * coeff;
       const leads   = traffic * (cr[kw.intention as Intention] / 100);
       const leadConv = businessType === 'lead' ? (tauxRdv / 100) * (tauxClosing / 100) : 1;
       const ca      = leads * basketValue * leadConv;
@@ -634,7 +649,7 @@ export default function SimulateurSEO() {
         budgetPerMonth: alloc?.budgetPerMonth ?? Array(12).fill(0),
       };
     });
-  }, [kwAllocations, keywords, da, healthScore, basketValue, crTransactionnel, crPreAchat, crIntermediaire, crInformationnel, budgetRatio, businessType, tauxRdv, tauxClosing]);
+  }, [kwAllocations, keywords, da, healthScore, basketValue, crTransactionnel, crPreAchat, crIntermediaire, crInformationnel, budgetRatio, businessType, tauxRdv, tauxClosing, chalandisePercent]);
 
   /* Monthly projection — computed directly from per-keyword monthly positions */
   const { monthlyData, breakEvenMonth } = useMemo(() => {
@@ -652,7 +667,7 @@ export default function SimulateurSEO() {
       kwResults.forEach(kw => {
         const pm   = kw.monthlyPos[i];
         const ctrM = (CTR_TABLE[pm] ?? 0) * (budgetRatio / 100);
-        const t    = kw.volume * ctrM * kw.coeff * seasonal;
+        const t    = getEffectiveVolume(kw, chalandisePercent) * ctrM * kw.coeff * seasonal;
         const l    = t * (cr[kw.intention as Intention] / 100);
         traffic += t;
         leads   += l;
@@ -700,7 +715,7 @@ export default function SimulateurSEO() {
     // CA exposed to visitors = what they see in the table (M+12 monthly rate)
     const totalCA = totalCA_m12;
 
-    const totalImpressions = keywords.reduce((s, k) => s + k.volume, 0) * kwMultiplier;
+    const totalImpressions = keywords.reduce((s, k) => s + getEffectiveVolume(k, chalandisePercent), 0) * kwMultiplier;
     const topics    = new Set(keywords.map(k => k.topic).filter(Boolean));
     const nbPages   = (topics.size || keywords.length) * kwMultiplier;
     const nbKeywords = keywords.length * kwMultiplier;
@@ -745,7 +760,7 @@ export default function SimulateurSEO() {
   const addKw = (catId: string) => {
     setState(s => ({
       ...s,
-      keywords: [...s.keywords, { id: uid(), keyword: '', volume: 1000, difficulty: 30, proximity: 1, intention: 1, topic: '', categoryId: catId }],
+      keywords: [...s.keywords, { id: uid(), keyword: '', volume: 1000, difficulty: 30, proximity: 1, intention: 1, topic: '', categoryId: catId, zone: 'chalandise' }],
     }));
     setOpenCats(prev => { const n = new Set(prev); n.add(catId); return n; });
   };
@@ -852,6 +867,7 @@ export default function SimulateurSEO() {
           intention:  (INTENT_MAP[intentRaw] ?? 1) as Intention,
           topic:      String(col(row, 'sujet', 'topic', 'theme', 'thème', 'cluster', 'page') ?? '').trim(),
           categoryId: catNameToId[catLabel],
+          zone:       'chalandise' as Zone,
         };
       }).filter(k => k.keyword);
 
@@ -1370,7 +1386,7 @@ export default function SimulateurSEO() {
                           onChange={target => {
                             const diff = target - catKws.length;
                             if (diff > 0) {
-                              const newKws = Array.from({ length: diff }, () => ({ id: uid(), keyword: '', volume: 1000, difficulty: 30, proximity: 1 as Proximity, intention: 1 as Intention, topic: '', categoryId: cat.id }));
+                              const newKws = Array.from({ length: diff }, () => ({ id: uid(), keyword: '', volume: 1000, difficulty: 30, proximity: 1 as Proximity, intention: 1 as Intention, topic: '', categoryId: cat.id, zone: 'chalandise' as Zone }));
                               setState(s => ({ ...s, keywords: [...s.keywords, ...newKws] }));
                             } else if (diff < 0) {
                               const toRemove = new Set(catKws.slice(diff).map(k => k.id));
@@ -1423,6 +1439,7 @@ export default function SimulateurSEO() {
                               <th style={{ padding: '3px 2px 5px', textAlign: 'center', minWidth: 36 }}>Diff.</th>
                               <th style={{ padding: '3px 2px 5px', textAlign: 'center', minWidth: 88 }}>Proximité</th>
                               <th style={{ padding: '3px 2px 5px', textAlign: 'center', minWidth: 100 }}>Intention</th>
+                              <th style={{ padding: '3px 2px 5px', textAlign: 'center', minWidth: 96 }}>Zone</th>
                               <th style={{ padding: '3px 0 5px 2px', textAlign: 'left', minWidth: 66 }}>Sujet</th>
                               <th style={{ width: 18 }} />
                             </tr>
@@ -1459,6 +1476,13 @@ export default function SimulateurSEO() {
                                     <option value={2}>Pré-achat</option>
                                     <option value={3}>Commerciale</option>
                                     <option value={4}>Informationnel</option>
+                                  </select>
+                                </td>
+                                <td style={{ padding: '4px 2px' }}>
+                                  <select value={kw.zone} onChange={e => updateKw(kw.id, 'zone', e.target.value as Zone)}
+                                    style={{ width: 96, backgroundColor: L_INPUT, border: `1px solid ${L_BORD}`, borderRadius: 3, color: L_DARK, fontSize: 11, padding: '2px 4px', outline: 'none', cursor: 'pointer' }}>
+                                    <option value="chalandise">Zone de chalandise</option>
+                                    <option value="france">France</option>
                                   </select>
                                 </td>
                                 <td style={{ padding: '4px 2px 4px 4px' }}>
@@ -1733,6 +1757,21 @@ export default function SimulateurSEO() {
                 </div>
               </>
             )}
+          </div>
+
+          {/* GESTION ZONE DE CHALANDISE */}
+          <div style={cardLight}>
+            <div style={secTitleLight}>
+              <span style={{ color: ORANGE, fontSize: 10 }}>◆</span> Gestion zone de chalandise
+            </div>
+            <Slider light
+              label="Population française concernée"
+              value={chalandisePercent}
+              min={0} max={100} step={0.5}
+              unit="%"
+              hint="Mots-clés 'France' : volume corrigé = volume × ce %. Mots-clés 'Zone de chalandise' : volume conservé à 100%."
+              onChange={v => update({ chalandisePercent: v })}
+            />
           </div>
 
         </div>
