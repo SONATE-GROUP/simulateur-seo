@@ -2477,6 +2477,15 @@ export default function SimulateurSEO() {
             </div>
           </div>
 
+          {/* DISCLAIMER — shown on the web version and captured in the PDF export */}
+          <div style={{
+            marginTop: 16, padding: '12px 16px', backgroundColor: G2,
+            border: `1px solid ${G3}`, borderRadius: 8,
+            color: '#5a7a6a', fontSize: 10, lineHeight: 1.5,
+          }}>
+            Cette simulation est indicative et non contractuelle. Elle repose sur des hypothèses estimatives et ne prend pas en compte certains facteurs externes pouvant impacter les résultats réels, notamment les actions médias, la politique tarifaire, la pression concurrentielle et les conditions commerciales. En e-commerce, les frais de port, remises et promotions peuvent fortement influencer la performance. En génération de leads, la rapidité de traitement, la qualité du suivi et l'efficacité de l'équipe commerciale ont également un impact direct sur les résultats.
+          </div>
+
         </div>
       </div>
     </div>
