@@ -494,7 +494,7 @@ export default function SimulateurSEO() {
 
   /* Budget allocation per keyword over 12 months (sudoku-style) */
   const kwAllocations = useMemo(() => {
-    const CHUNK = 200; // € per allocation step
+    const CHUNK = 100; // € per allocation step
     const PROX_FACTOR: Record<number, number> = { 1: 1.0, 2: 1.5, 3: 3.0 };
     const coeffSante = Math.max(0.01, computeHealthCoeff(healthScore));
 
@@ -524,10 +524,14 @@ export default function SimulateurSEO() {
     // Proximity weight prioritizes exact-match keywords over thematic ones
     // (proximity 1=exact, 2=très proche, 3=thématique → weight 3, 2, 1)
     const POTENTIAL_PROX_WEIGHT: Record<number, number> = { 1: 3, 2: 2, 3: 1 };
+    // Gain réel obtenu en ajoutant CHUNK au budget cumulé : compare la position
+    // actuelle à la position après ajout du chunk, plutôt qu'un gain théorique
+    // vers la position-1 qui peut ne jamais être atteinte (budget gaspillé sans effet).
     const getPotential = (kw: Keyword, cumBudget: number, nbActiveInCat: number): number => {
       const pos = getPos(getPosRaw(kw, cumBudget, nbActiveInCat));
       if (pos <= 1) return 0; // already at best position
-      const gain = (CTR_TABLE[pos - 1] ?? 0) - (CTR_TABLE[pos] ?? 0);
+      const posAfter = getPos(getPosRaw(kw, cumBudget + CHUNK, nbActiveInCat));
+      const gain = (CTR_TABLE[posAfter] ?? 0) - (CTR_TABLE[pos] ?? 0);
       if (gain <= 0) return 0;
       const crVal = cr[kw.intention as Intention]; // already in %
       const diff2 = (kw.difficulty || 1) * (kw.difficulty || 1);
