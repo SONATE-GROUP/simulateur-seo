@@ -477,7 +477,10 @@ export default function SimulateurSEO() {
     };
     const getPos = (raw: number) => Math.min(Math.max(Math.round(raw), 1), 11);
 
-    // Potential = Volume × cr[intention] × proximity × ΔCTR / difficulty²
+    // Potential = Volume × cr[intention] × proximityWeight × ΔCTR / difficulty²
+    // Proximity weight prioritizes exact-match keywords over thematic ones
+    // (proximity 1=exact, 2=très proche, 3=thématique → weight 3, 2, 1)
+    const POTENTIAL_PROX_WEIGHT: Record<number, number> = { 1: 3, 2: 2, 3: 1 };
     const getPotential = (kw: Keyword, cumBudget: number, nbActiveInCat: number): number => {
       const pos = getPos(getPosRaw(kw, cumBudget, nbActiveInCat));
       if (pos <= 1) return 0; // already at best position
@@ -485,7 +488,8 @@ export default function SimulateurSEO() {
       if (gain <= 0) return 0;
       const crVal = cr[kw.intention as Intention]; // already in %
       const diff2 = (kw.difficulty || 1) * (kw.difficulty || 1);
-      return kw.volume * crVal * kw.proximity * gain / diff2;
+      const proxWeight = POTENTIAL_PROX_WEIGHT[kw.proximity] ?? 1;
+      return kw.volume * crVal * proxWeight * gain / diff2;
     };
 
     // Initialize per-keyword tracking
