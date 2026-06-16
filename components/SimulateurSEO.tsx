@@ -2037,7 +2037,7 @@ export default function SimulateurSEO() {
           </div>
 
           {/* BLOC 4b — LEADS PAR MOIS */}
-          <div style={{ marginBottom: 14 }}>
+          <div style={card}>
             <div style={{ ...secTitle, marginBottom: 10 }}>
               <span style={{ color: ORANGE, fontSize: 10 }}>◆</span> Évolution du CPA (coût d'acquisition) : 12 mois
             </div>
@@ -2075,7 +2075,7 @@ export default function SimulateurSEO() {
           </div>
 
           {/* BLOC 4c — MONTÉE EN PUISSANCE */}
-          <div style={{ marginBottom: 14 }}>
+          <div style={card}>
             <div style={{ ...secTitle, marginBottom: 4 }}>
               <span style={{ color: ORANGE, fontSize: 10 }}>◆</span> Montée en puissance SEO/GEO : 1ère année
             </div>
