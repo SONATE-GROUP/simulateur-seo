@@ -103,7 +103,7 @@ const PROX_FACTOR: Record<number, number> = { 1: 1.0, 2: 1.5, 3: 3.0 };
 // Difficulty (relative to DA), proximity, site health and topical-cluster
 // synergy only scale HOW MUCH budget is required to travel along that curve —
 // they never change its shape, so budget always remains the visible driver.
-const BUDGET_IMPACT       = 40;   // ×40 budget impact: divides the budget thresholds below
+const BUDGET_IMPACT       = 8;    // ×8 budget impact: divides the budget thresholds below
 const BUDGET_TOP10        = 500 / BUDGET_IMPACT; // € — cumulative budget to enter the top 10
 const BUDGET_HALVING_STEP = 300 / BUDGET_IMPACT; // € — extra budget that halves the distance to pos 1
 const DIFFICULTY_EXP      = 1.9;  // sensitivity of budget needs to the difficulty / DA ratio
