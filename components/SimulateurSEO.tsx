@@ -884,22 +884,23 @@ export default function SimulateurSEO() {
   }, [kwResults, monthlyData, keywords, categories, budgetRatio, kwMultiplier, businessType, tauxRdv, tauxClosing, basketValue]);
 
   /* Monthly estimated clicks split between classic SEO and generative engines.
-     - Month 1 total = estimated click volume; the total grows +2% each month.
+     - Monthly total = real captured traffic of the month = sum over keywords of
+       their traffic at that month's position (already accounts for each keyword's
+       activation "1er mois" and the position ramp), then +2% organic growth/month.
      - The SEO → GEO mix shifts by +4 points of GEO share every month:
        M1 = 100% SEO / 0% GEO  →  M12 = 56% SEO / 44% GEO. */
   const seoGeoData = useMemo(() => {
-    const base = totals.totalTraffic;          // volume de clics estimé (M1)
     const MONTHLY_VOLUME_GROWTH = 0.02;        // +2% de volume total par mois
     const GEO_SHIFT_PER_MONTH   = 0.04;        // +4 pts de part GEO par mois
     return monthlyData.map((m, i) => {
-      const total    = base * Math.pow(1 + MONTHLY_VOLUME_GROWTH, i);
+      const total    = m.traffic * Math.pow(1 + MONTHLY_VOLUME_GROWTH, i);
       const geoShare = Math.min(1, GEO_SHIFT_PER_MONTH * i); // i=0 → 0%, i=11 → 44%
       const totalR   = Math.round(total);
       const geo      = Math.round(total * geoShare);
       const seo      = totalR - geo;
       return { month: m.month, seo, geo, total: totalR, geoPct: Math.round(geoShare * 100) };
     });
-  }, [monthlyData, totals.totalTraffic]);
+  }, [monthlyData]);
 
   const hasCatCoeffApplied = useMemo(() => categories.some(c => (c.coeff ?? 1) > 1), [categories]);
 
