@@ -58,6 +58,12 @@ interface SimState {
   budgetCatsHidden: boolean;
   chalandisePercent: number;
   breakEvenMode: 'mensuel' | 'cumule';
+  // Paramétrage avancé — pondération de chaque levier de positionnement, en %
+  // (100 = calibrage par défaut). Voir computePosRaw.
+  weightBudget: number;     // impact du budget pour entrer dans le top 10
+  weightDA: number;         // force de la présence organique existante (DA)
+  weightProximity: number;  // poids de la proximité thématique (exact vs large)
+  weightKeywords: number;   // synergie de cluster liée au nombre de mots-clés
 }
 
 /* ─── CONSTANTS ──────────────────────────────────────────────── */
@@ -108,7 +114,6 @@ const PROX_FACTOR: Record<number, number> = { 1: 1.0, 2: 1.5, 3: 3.0 };
 //         budget(pos) = top10 · POS_CLIMB_BASE^(10 − pos)
 //      ⇒  pos = 10 − log_base(budget / top10)
 const BUDGET_IMPACT       = 8;    // ×8 budget impact for ENTERING the top 10 (weighting)
-const BUDGET_TOP10        = 500 / BUDGET_IMPACT; // € — weighted budget to reach position 10
 const POS_CLIMB_BASE      = 1.5;  // >1 → exponential difficulty to climb from 10 to 1
 const DIFFICULTY_EXP      = 1.9;  // sensitivity of budget needs to the difficulty / DA ratio
 const ACCEL_PER_KW        = 0.5;  // cluster synergy: budget discount per extra funded keyword
@@ -125,6 +130,17 @@ const PRESENCE_STRENGTH = 3.0;   // free positions gained per ×2 of DA / diffic
 const PRESENCE_PROX_WEIGHT: Record<number, number> = { 1: 1.0, 2: 0.45, 3: 0.15 };
 const MAX_EXISTING_PRESENCE = 9; // cap: the best a site can rank for free is position 1
 
+// Advanced tuning — multipliers on each positioning lever (1 = default
+// calibration). Exposed to the UI through the "Paramétrage avancé" sliders so
+// the weight of budget, DA, thematic proximity and keyword count can be tuned.
+interface PosWeights {
+  budget: number;     // ×BUDGET_IMPACT — how much paid budget moves the ranking
+  da: number;         // ×PRESENCE_STRENGTH — strength of the existing DA presence
+  proximity: number;  // intensity of the exact-vs-thematic differentiation
+  keywords: number;   // ×ACCEL_PER_KW — cluster synergy from the keyword count
+}
+const DEFAULT_POS_WEIGHTS: PosWeights = { budget: 1, da: 1, proximity: 1, keywords: 1 };
+
 function computePosRaw(
   cumBudget: number,
   difficulty: number,
@@ -132,22 +148,32 @@ function computePosRaw(
   proximity: number,
   nbActiveInCat: number,
   coeffSante: number,
+  weights: PosWeights = DEFAULT_POS_WEIGHTS,
 ): number {
   if (da <= 0) return 100;
 
+  // Proximity differentiation, scaled by its weight. At weight 0 proximity is
+  // ignored (every match treated as exact); at 1 the default applies; above 1
+  // the exact-vs-thematic gap widens. The exact match (factor 1) is unaffected.
+  const proxBudgetFactor = 1 + ((PROX_FACTOR[proximity] ?? 1) - 1) * weights.proximity;
+  const proxPresenceWeight = Math.max(0,
+    1 - (1 - (PRESENCE_PROX_WEIGHT[proximity] ?? 0)) * weights.proximity);
+
   // Harder keywords (relative to the site authority) and broad-match keywords
   // need proportionally more budget to reach the same position.
-  const difficultyFactor = Math.pow(difficulty / da, DIFFICULTY_EXP) * (PROX_FACTOR[proximity] ?? 1);
+  const difficultyFactor = Math.pow(difficulty / da, DIFFICULTY_EXP) * proxBudgetFactor;
 
   // Favourable factors make ranking cheaper: a healthy site and a well-covered
   // topical cluster (several funded keywords in the category) both help.
   const healthFactor  = coeffSante / Math.max(0.01, computeHealthCoeff(REF_HEALTH_SCORE));
-  const clusterFactor = Math.min(MAX_CLUSTER_SYNERGY, 1 + ACCEL_PER_KW * Math.max(0, nbActiveInCat - 1));
+  const clusterFactor = Math.min(MAX_CLUSTER_SYNERGY, 1 + ACCEL_PER_KW * weights.keywords * Math.max(0, nbActiveInCat - 1));
 
-  // Weighted budget required by THIS keyword to reach position 10 (unchanged
-  // weighting). The 10 → 1 climb above it is exponentially harder.
+  // Weighted budget required by THIS keyword to reach position 10. A higher
+  // budget weight lowers it (budget more effective). The 10 → 1 climb above it
+  // is exponentially harder.
+  const top10Base = 500 / Math.max(0.01, BUDGET_IMPACT * weights.budget);
   const scale = difficultyFactor / Math.max(0.01, healthFactor * clusterFactor);
-  const top10 = BUDGET_TOP10 * scale;
+  const top10 = top10Base * scale;
 
   // Pre-existing organic presence from DA, converted into a virtual budget so
   // it stacks with the paid budget on the same scale. Positive when the site
@@ -156,9 +182,9 @@ function computePosRaw(
   // 10 − presence (the top10 cancels out), so it is purely DA/proximity driven.
   const presence = Math.min(
     MAX_EXISTING_PRESENCE,
-    PRESENCE_STRENGTH
+    PRESENCE_STRENGTH * weights.da
       * (Math.log(da / Math.max(1, difficulty)) / Math.LN2)
-      * (PRESENCE_PROX_WEIGHT[proximity] ?? 0),
+      * proxPresenceWeight,
   );
   const virtualBudget = top10 * Math.pow(POS_CLIMB_BASE, presence);
 
@@ -231,6 +257,10 @@ const INITIAL: SimState = {
   budgetCatsHidden: false,
   chalandisePercent: 100,
   breakEvenMode: 'mensuel',
+  weightBudget: 100,
+  weightDA: 100,
+  weightProximity: 100,
+  weightKeywords: 100,
 };
 
 /* ─── PALETTE ────────────────────────────────────────────────── */
@@ -520,11 +550,20 @@ export default function SimulateurSEO() {
     seasonalityEnabled, startMonth, highSeasonMonths, highSeasonMultiplier,
     kwMultiplier, businessType, tauxRdv, tauxClosing, categories, budgetCatsHidden,
     chalandisePercent, breakEvenMode,
+    weightBudget, weightDA, weightProximity, weightKeywords,
   } = state;
 
   const cr: Record<Intention, number> = {
     1: crTransactionnel, 2: crPreAchat, 3: crIntermediaire, 4: crInformationnel,
   };
+
+  // Advanced tuning weights (UI sliders are in %, the model expects multipliers).
+  const posWeights = useMemo<PosWeights>(() => ({
+    budget:    weightBudget / 100,
+    da:        weightDA / 100,
+    proximity: weightProximity / 100,
+    keywords:  weightKeywords / 100,
+  }), [weightBudget, weightDA, weightProximity, weightKeywords]);
 
   /* Load from URL */
   useEffect(() => {
@@ -537,6 +576,10 @@ export default function SimulateurSEO() {
       keywords: (s.keywords ?? []).map(k => ({ ...k, zone: k.zone ?? 'chalandise' })),
       chalandisePercent: s.chalandisePercent ?? 100,
       breakEvenMode: s.breakEvenMode ?? 'mensuel',
+      weightBudget: s.weightBudget ?? 100,
+      weightDA: s.weightDA ?? 100,
+      weightProximity: s.weightProximity ?? 100,
+      weightKeywords: s.weightKeywords ?? 100,
     });
     if (data) {
       try { skipDirtyRef.current = true; setState(migrate(decodeState(data))); } catch { /* ignore */ }
@@ -637,7 +680,7 @@ export default function SimulateurSEO() {
     // Compute posRaw for a keyword given its individual cumulative budget and
     // how many keywords in its category currently have budget activated
     const getPosRaw = (kw: Keyword, cumBudget: number, nbActiveInCat: number): number =>
-      computePosRaw(cumBudget, kw.difficulty, da, kw.proximity, nbActiveInCat, coeffSante);
+      computePosRaw(cumBudget, kw.difficulty, da, kw.proximity, nbActiveInCat, coeffSante, posWeights);
     const getPos = (raw: number) => Math.min(Math.max(Math.round(raw), 1), 11);
 
     // Potential = Volume × cr[intention] × proximityWeight × ΔCTR / difficulty²
@@ -774,7 +817,7 @@ export default function SimulateurSEO() {
       };
     });
     return result;
-  }, [keywords, categories, da, healthScore, budgetRatio, crTransactionnel, crPreAchat, crIntermediaire, crInformationnel, chalandisePercent]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [keywords, categories, da, healthScore, budgetRatio, crTransactionnel, crPreAchat, crIntermediaire, crInformationnel, chalandisePercent, posWeights]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* Per-keyword results — FULL view (existing organic presence + paid budget) */
   const fullKwResults = useMemo(() => {
@@ -787,7 +830,7 @@ export default function SimulateurSEO() {
 
       // Position at M+12 (full year cumulative budget + active-keyword synergy)
       const totalActiveKws = alloc?.totalActiveKws ?? 1;
-      const posRaw = computePosRaw(totalBudget, kw.difficulty, da, kw.proximity, totalActiveKws, coeffSante);
+      const posRaw = computePosRaw(totalBudget, kw.difficulty, da, kw.proximity, totalActiveKws, coeffSante, posWeights);
       const pos    = Math.min(Math.max(Math.round(posRaw), 1), 11);
 
       // Monthly positions based on actual cumulative budget + active-keyword count at each month
@@ -796,7 +839,7 @@ export default function SimulateurSEO() {
       // ranks on its exact themes before any spend, so the baseline DA-driven
       // position (from computePosRaw) must show through from M1.
       const monthlyPos = (alloc?.cumulativePerMonth ?? Array(12).fill(0)).map((cumBudget, i) => {
-        const pr = computePosRaw(cumBudget, kw.difficulty, da, kw.proximity, activeKwsPerMonth[i] ?? 1, coeffSante);
+        const pr = computePosRaw(cumBudget, kw.difficulty, da, kw.proximity, activeKwsPerMonth[i] ?? 1, coeffSante, posWeights);
         return Math.min(Math.max(Math.round(pr), 1), 11);
       });
 
@@ -816,7 +859,7 @@ export default function SimulateurSEO() {
         nextCtrMonthlyIncrease: alloc?.nextCtrMonthlyIncrease ?? null,
       };
     });
-  }, [kwAllocations, keywords, da, healthScore, basketValue, crTransactionnel, crPreAchat, crIntermediaire, crInformationnel, budgetRatio, businessType, tauxRdv, tauxClosing, chalandisePercent]);
+  }, [kwAllocations, keywords, da, healthScore, basketValue, crTransactionnel, crPreAchat, crIntermediaire, crInformationnel, budgetRatio, businessType, tauxRdv, tauxClosing, chalandisePercent, posWeights]);
 
   /* Per-keyword results — BASELINE view (no paid budget at all): each keyword
      keeps only the DA-driven organic position it already holds, with no budget
@@ -827,7 +870,7 @@ export default function SimulateurSEO() {
 
     return keywords.map(kw => {
       const coeff   = categories.find(c => c.id === kw.categoryId)?.coeff ?? 1;
-      const posRaw  = computePosRaw(0, kw.difficulty, da, kw.proximity, 0, coeffSante);
+      const posRaw  = computePosRaw(0, kw.difficulty, da, kw.proximity, 0, coeffSante, posWeights);
       const pos     = Math.min(Math.max(Math.round(posRaw), 1), 11);
       const monthlyPos = Array(12).fill(pos);
 
@@ -845,7 +888,7 @@ export default function SimulateurSEO() {
         nextCtrMonthlyIncrease: null,
       };
     });
-  }, [keywords, categories, da, healthScore, basketValue, crTransactionnel, crPreAchat, crIntermediaire, crInformationnel, budgetRatio, businessType, tauxRdv, tauxClosing, chalandisePercent]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [keywords, categories, da, healthScore, basketValue, crTransactionnel, crPreAchat, crIntermediaire, crInformationnel, budgetRatio, businessType, tauxRdv, tauxClosing, chalandisePercent, posWeights]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* Per-keyword results — DIFFERENTIAL view: the incremental contribution of the
      paid budget = full − baseline. Positions shown are the achieved (full) ones;
@@ -2086,6 +2129,53 @@ export default function SimulateurSEO() {
               unit="%"
               hint="Mots-clés 'France' : volume corrigé = volume × ce %. Mots-clés 'Zone de chalandise' : volume conservé à 100%."
               onChange={v => update({ chalandisePercent: v })}
+            />
+          </div>
+
+          {/* PARAMÉTRAGE AVANCÉ — pondération des leviers de positionnement */}
+          <div style={cardLight}>
+            <div style={{ ...secTitleLight, justifyContent: 'space-between' }}>
+              <span>
+                <span style={{ color: ORANGE, fontSize: 10 }}>◆</span> Paramétrage avancé
+              </span>
+              {(weightBudget !== 100 || weightDA !== 100 || weightProximity !== 100 || weightKeywords !== 100) && (
+                <button
+                  onClick={() => update({ weightBudget: 100, weightDA: 100, weightProximity: 100, weightKeywords: 100 })}
+                  style={{
+                    border: `1px solid ${L_BORD}`, borderRadius: 6, background: 'transparent',
+                    color: L_MED, fontSize: 10, fontWeight: 600, padding: '3px 8px', cursor: 'pointer',
+                  }}
+                >
+                  Réinitialiser
+                </button>
+              )}
+            </div>
+            <div style={{ color: L_MED, fontSize: 11, marginBottom: 12 }}>
+              Pondère le poids de chaque levier dans le calcul des positions. 100 % = calibrage par défaut.
+            </div>
+            <Slider light
+              label="Pondération du budget"
+              value={weightBudget} min={0} max={200} step={5} unit="%"
+              hint="Plus élevé : le budget fait gagner des positions plus vite."
+              onChange={v => update({ weightBudget: v })}
+            />
+            <Slider light
+              label="Impact du DA"
+              value={weightDA} min={0} max={200} step={5} unit="%"
+              hint="Plus élevé : un DA fort positionne davantage le site sans budget."
+              onChange={v => update({ weightDA: v })}
+            />
+            <Slider light
+              label="Impact de la proximité thématique"
+              value={weightProximity} min={0} max={200} step={5} unit="%"
+              hint="Plus élevé : l'écart entre thème exact et thématique est plus marqué."
+              onChange={v => update({ weightProximity: v })}
+            />
+            <Slider light
+              label="Impact du nombre de mots-clés"
+              value={weightKeywords} min={0} max={200} step={5} unit="%"
+              hint="Plus élevé : un cluster bien fourni se positionne plus facilement."
+              onChange={v => update({ weightKeywords: v })}
             />
           </div>
 
