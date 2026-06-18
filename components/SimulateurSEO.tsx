@@ -2277,6 +2277,9 @@ export default function SimulateurSEO() {
                       { label: 'Mot clé / Sujet', align: 'left'   },
                       { label: 'Volume',           align: 'right'  },
                       { label: 'Diff.',            align: 'center' },
+                      { label: 'Position M+3',     align: 'center' },
+                      { label: 'Position M+6',     align: 'center' },
+                      { label: 'Position M+9',     align: 'center' },
                       { label: 'Position M+12',    align: 'center' },
                       { label: 'CTR',              align: 'center' },
                       { label: 'Trafic / mois',    align: 'right', starred: hasCatCoeffApplied },
@@ -2323,6 +2326,20 @@ export default function SimulateurSEO() {
                           </td>
                           <td style={{ padding: '8px', textAlign: 'right', color: '#a8c5b5' }}>{fmtN(kw.volume)}</td>
                           <td style={{ padding: '8px', textAlign: 'center', color: '#a8c5b5' }}>{kw.difficulty}</td>
+                          {[2, 5, 8].map(mi => {
+                            const p = kw.monthlyPos[mi];
+                            return (
+                              <td key={mi} style={{ padding: '8px', textAlign: 'center' }}>
+                                <span style={{
+                                  backgroundColor: p <= 3 ? `${ORANGE}aa` : p <= 6 ? '#2d7a5e99' : `${G3}99`,
+                                  borderRadius: 10, padding: '2px 9px',
+                                  fontSize: 11, fontWeight: 700, color: '#e8e0d4',
+                                }}>
+                                  {p === 11 ? '11+' : `#${p}`}
+                                </span>
+                              </td>
+                            );
+                          })}
                           <td style={{ padding: '8px', textAlign: 'center' }}>
                             <span style={{
                               backgroundColor: kw.pos <= 3 ? ORANGE : kw.pos <= 6 ? '#2d7a5e' : G3,
@@ -2407,7 +2424,7 @@ export default function SimulateurSEO() {
                         </tr>
                         {isExpanded && (
                           <tr key={`${kw.id}-monthly`} style={{ borderBottom: `1px solid ${G3}`, backgroundColor: '#0d1f18' }}>
-                            <td colSpan={12} style={{ padding: '8px 12px 12px 36px' }}>
+                            <td colSpan={15} style={{ padding: '8px 12px 12px 36px' }}>
                               <div style={{ fontSize: 9, color: '#5a7a6a', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
                                 Progression de position estimée
                               </div>
@@ -2441,6 +2458,9 @@ export default function SimulateurSEO() {
                   <tr style={{ borderTop: `2px solid ${G3}` }}>
                     <td></td>
                     <td style={{ padding: '10px 8px', color: CREAM, fontWeight: 700 }}>Total</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
                     <td></td>
                     <td></td>
                     <td></td>
