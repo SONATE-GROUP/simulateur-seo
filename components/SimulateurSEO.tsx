@@ -86,22 +86,55 @@ const INTENT_COLOR: Record<number, string> = {
   1: '#e8571a', 2: '#f59e0b', 3: '#3b82f6', 4: '#6b7280',
 };
 
-// Budget → "ranking power" curve: the first euros spent on a keyword are
-// intentionally under-powered, then the curve accelerates once the category
-// has several keywords with budget. This avoids unrealistic early jumps in
-// ranking while rewarding topical authority built by treating a cluster.
-const BUDGET_THRESH      = 5000; // € — high traction threshold to prevent small-budget top ranks
-const BUDGET_DAMP_EXP    = 3;    // >1 → very strong damping before enough budget is accumulated
-const ACCEL_PER_KW       = 1.25; // synergy boost per extra funded keyword in category
-const ACCEL_KW_EXP       = 1.0;  // linear cluster coverage: safer than explosive acceleration
-const MAX_CATEGORY_ACCEL = 12;   // cap calibrated so broad top ranks require ~5k€/month
-const BUDGET_IMPACT_DIVISOR = 4; // global reduction of budget impact on positions
-function computeLogBudget(cumBudget: number, nbActiveInCat: number): number {
-  if (cumBudget <= 0) return 0;
-  const activeBoost = Math.pow(Math.max(0, nbActiveInCat - 1), ACCEL_KW_EXP);
-  const categoryAccel = Math.min(MAX_CATEGORY_ACCEL, 1 + ACCEL_PER_KW * activeBoost);
-  const damping = Math.pow(cumBudget / (cumBudget + BUDGET_THRESH), BUDGET_DAMP_EXP);
-  return (Math.log(1 + cumBudget / 20) * damping * categoryAccel) / BUDGET_IMPACT_DIVISOR;
+// Exact-match priority weight applied to keyword proximity (1 = exact match,
+// 2 = very close, 3 = thematic). Harder-to-attribute keywords cost more budget.
+const PROX_FACTOR: Record<number, number> = { 1: 1.0, 2: 1.5, 3: 3.0 };
+
+// Budget → position model (continuous position, 1 = best, 11 = off the top 10).
+//
+// Calibration — reference keyword: difficulty == site DA, proximity "exact",
+// a single funded keyword in its category, neutral health score (60):
+//   • the first 500 € of cumulative budget bring it into the top 10 (pos 10);
+//   • every extra 300 € halves the remaining distance to position 1:
+//         pos(n+1) = (1 + pos(n)) / 2
+//     → closed form  pos = 1 + 9 · 0.5^((budget − 500) / 300).
+//
+// Difficulty (relative to DA), proximity, site health and topical-cluster
+// synergy only scale HOW MUCH budget is required to travel along that curve —
+// they never change its shape, so budget always remains the visible driver.
+const BUDGET_TOP10        = 500;  // € — cumulative budget to enter the top 10 (reference kw)
+const BUDGET_HALVING_STEP = 300;  // € — extra budget that halves the distance to position 1
+const DIFFICULTY_EXP      = 1.9;  // sensitivity of budget needs to the difficulty / DA ratio
+const ACCEL_PER_KW        = 0.5;  // cluster synergy: budget discount per extra funded keyword
+const MAX_CLUSTER_SYNERGY = 2.5;  // cap on the topical-authority budget discount
+const REF_HEALTH_SCORE    = 60;   // health score at which the calibration above holds exactly
+
+function computePosRaw(
+  cumBudget: number,
+  difficulty: number,
+  da: number,
+  proximity: number,
+  nbActiveInCat: number,
+  coeffSante: number,
+): number {
+  if (cumBudget <= 0 || da <= 0) return 100;
+
+  // Harder keywords (relative to the site authority) and broad-match keywords
+  // need proportionally more budget to reach the same position.
+  const difficultyFactor = Math.pow(difficulty / da, DIFFICULTY_EXP) * (PROX_FACTOR[proximity] ?? 1);
+
+  // Favourable factors make ranking cheaper: a healthy site and a well-covered
+  // topical cluster (several funded keywords in the category) both help.
+  const healthFactor  = coeffSante / Math.max(0.01, computeHealthCoeff(REF_HEALTH_SCORE));
+  const clusterFactor = Math.min(MAX_CLUSTER_SYNERGY, 1 + ACCEL_PER_KW * Math.max(0, nbActiveInCat - 1));
+
+  // Budget thresholds for THIS keyword, scaled from the reference calibration.
+  const scale = difficultyFactor / Math.max(0.01, healthFactor * clusterFactor);
+  const top10 = BUDGET_TOP10 * scale;
+  const step  = BUDGET_HALVING_STEP * scale;
+
+  const n = (cumBudget - top10) / step;
+  return 1 + 9 * Math.pow(0.5, n);
 }
 
 // Piecewise-linear coefficient from the Semrush Health Score:
@@ -565,7 +598,6 @@ export default function SimulateurSEO() {
   const kwAllocations = useMemo(() => {
     const CHUNK = 100; // € per allocation step
     const MAX_CTR_PROPOSAL = 5000; // € — max extra monthly budget tested for next CTR step
-    const PROX_FACTOR: Record<number, number> = { 1: 1.0, 2: 1.5, 3: 3.0 };
     const coeffSante = Math.max(0.01, computeHealthCoeff(healthScore));
 
     // Per-category: budget (scaled by budgetRatio), keyword count, coeff
@@ -581,13 +613,8 @@ export default function SimulateurSEO() {
 
     // Compute posRaw for a keyword given its individual cumulative budget and
     // how many keywords in its category currently have budget activated
-    const getPosRaw = (kw: Keyword, cumBudget: number, nbActiveInCat: number): number => {
-      const nb  = Math.max(1, catNbKws[kw.categoryId] ?? 1);
-      const lb  = computeLogBudget(cumBudget, nbActiveInCat);
-      if (lb === 0) return 100;
-      const den = 225 * da * (coeffSante / 70) * Math.sqrt(nb) * lb;
-      return den > 0 ? (Math.pow(kw.difficulty, 1.9) * (PROX_FACTOR[kw.proximity] ?? 1)) / den : 100;
-    };
+    const getPosRaw = (kw: Keyword, cumBudget: number, nbActiveInCat: number): number =>
+      computePosRaw(cumBudget, kw.difficulty, da, kw.proximity, nbActiveInCat, coeffSante);
     const getPos = (raw: number) => Math.min(Math.max(Math.round(raw), 1), 11);
 
     // Potential = Volume × cr[intention] × proximityWeight × ΔCTR / difficulty²
@@ -728,29 +755,23 @@ export default function SimulateurSEO() {
 
   /* Per-keyword results */
   const kwResults = useMemo(() => {
-    const PROX_FACTOR: Record<number, number> = { 1: 1.0, 2: 1.5, 3: 3.0 };
     const coeffSante = Math.max(0.01, computeHealthCoeff(healthScore));
 
     return keywords.map(kw => {
       const alloc    = kwAllocations[kw.id];
-      const nb       = Math.max(1, alloc?.nbKwsInCat ?? 1);
       const coeff    = alloc?.catCoeff ?? 1;
       const totalBudget = alloc?.totalBudget ?? 0;
 
       // Position at M+12 (full year cumulative budget + active-keyword synergy)
       const totalActiveKws = alloc?.totalActiveKws ?? 1;
-      const lb12   = computeLogBudget(totalBudget, totalActiveKws);
-      const den12  = lb12 > 0 ? 225 * da * (coeffSante / 70) * Math.sqrt(nb) * lb12 : 0;
-      const posRaw = den12 > 0 ? (Math.pow(kw.difficulty, 1.9) * (PROX_FACTOR[kw.proximity] ?? 1)) / den12 : 100;
+      const posRaw = computePosRaw(totalBudget, kw.difficulty, da, kw.proximity, totalActiveKws, coeffSante);
       const pos    = Math.min(Math.max(Math.round(posRaw), 1), 11);
 
       // Monthly positions based on actual cumulative budget + active-keyword count at each month
       const activeKwsPerMonth = alloc?.activeKwsPerMonth ?? Array(12).fill(1);
       const monthlyPos = (alloc?.cumulativePerMonth ?? Array(12).fill(0)).map((cumBudget, i) => {
         if (cumBudget === 0) return 11;
-        const lb = computeLogBudget(cumBudget, activeKwsPerMonth[i] ?? 1);
-        const d  = lb > 0 ? 225 * da * (coeffSante / 70) * Math.sqrt(nb) * lb : 0;
-        const pr = d > 0 ? (Math.pow(kw.difficulty, 1.9) * (PROX_FACTOR[kw.proximity] ?? 1)) / d : 100;
+        const pr = computePosRaw(cumBudget, kw.difficulty, da, kw.proximity, activeKwsPerMonth[i] ?? 1, coeffSante);
         return Math.min(Math.max(Math.round(pr), 1), 11);
       });
 
