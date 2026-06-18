@@ -93,17 +93,19 @@ const PROX_FACTOR: Record<number, number> = { 1: 1.0, 2: 1.5, 3: 3.0 };
 // Budget → position model (continuous position, 1 = best, 11 = off the top 10).
 //
 // Calibration — reference keyword: difficulty == site DA, proximity "exact",
-// a single funded keyword in its category, neutral health score (60):
-//   • the first 500 € of cumulative budget bring it into the top 10 (pos 10);
-//   • every extra 300 € halves the remaining distance to position 1:
+// a single funded keyword in its category, neutral health score (60).
+// The budget thresholds below are the base calibration (500 € → top 10, then
+// 300 € halving steps) divided by BUDGET_IMPACT to make budget more impactful:
+//   • each 0.5^step still halves the remaining distance to position 1:
 //         pos(n+1) = (1 + pos(n)) / 2
-//     → closed form  pos = 1 + 9 · 0.5^((budget − 500) / 300).
+//     → closed form  pos = 1 + 9 · 0.5^((budget − BUDGET_TOP10) / BUDGET_HALVING_STEP).
 //
 // Difficulty (relative to DA), proximity, site health and topical-cluster
 // synergy only scale HOW MUCH budget is required to travel along that curve —
 // they never change its shape, so budget always remains the visible driver.
-const BUDGET_TOP10        = 500;  // € — cumulative budget to enter the top 10 (reference kw)
-const BUDGET_HALVING_STEP = 300;  // € — extra budget that halves the distance to position 1
+const BUDGET_IMPACT       = 4;    // ×4 budget impact: divides the budget thresholds below
+const BUDGET_TOP10        = 500 / BUDGET_IMPACT; // € — cumulative budget to enter the top 10
+const BUDGET_HALVING_STEP = 300 / BUDGET_IMPACT; // € — extra budget that halves the distance to pos 1
 const DIFFICULTY_EXP      = 1.9;  // sensitivity of budget needs to the difficulty / DA ratio
 const ACCEL_PER_KW        = 0.5;  // cluster synergy: budget discount per extra funded keyword
 const MAX_CLUSTER_SYNERGY = 2.5;  // cap on the topical-authority budget discount
