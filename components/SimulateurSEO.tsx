@@ -485,6 +485,9 @@ export default function SimulateurSEO() {
   const [openCats, setOpenCats] = useState<Set<string>>(new Set(['cat1', 'cat2']));
   const [expandedKws, setExpandedKws] = useState<Set<string>>(new Set());
   const [budgetTooltipKwId, setBudgetTooltipKwId] = useState<string | null>(null);
+  // Affichage des chiffres : 'complet' = données totales (présence existante + budget),
+  // 'differentiel' = uniquement l'apport du budget (avec budget − sans budget).
+  const [displayMode, setDisplayMode] = useState<'complet' | 'differentiel'>('complet');
   const toggleKwExpand = (id: string) => setExpandedKws(prev => {
     const next = new Set(prev);
     next.has(id) ? next.delete(id) : next.add(id);
@@ -773,8 +776,8 @@ export default function SimulateurSEO() {
     return result;
   }, [keywords, categories, da, healthScore, budgetRatio, crTransactionnel, crPreAchat, crIntermediaire, crInformationnel, chalandisePercent]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* Per-keyword results */
-  const kwResults = useMemo(() => {
+  /* Per-keyword results — FULL view (existing organic presence + paid budget) */
+  const fullKwResults = useMemo(() => {
     const coeffSante = Math.max(0.01, computeHealthCoeff(healthScore));
 
     return keywords.map(kw => {
@@ -815,8 +818,58 @@ export default function SimulateurSEO() {
     });
   }, [kwAllocations, keywords, da, healthScore, basketValue, crTransactionnel, crPreAchat, crIntermediaire, crInformationnel, budgetRatio, businessType, tauxRdv, tauxClosing, chalandisePercent]);
 
-  /* Monthly projection — computed directly from per-keyword monthly positions */
-  const { monthlyData, breakEvenMonth } = useMemo(() => {
+  /* Per-keyword results — BASELINE view (no paid budget at all): each keyword
+     keeps only the DA-driven organic position it already holds, with no budget
+     allocated. Position is constant across the 12 months. */
+  const baselineKwResults = useMemo(() => {
+    const coeffSante = Math.max(0.01, computeHealthCoeff(healthScore));
+    const leadConv = businessType === 'lead' ? (tauxRdv / 100) * (tauxClosing / 100) : 1;
+
+    return keywords.map(kw => {
+      const coeff   = categories.find(c => c.id === kw.categoryId)?.coeff ?? 1;
+      const posRaw  = computePosRaw(0, kw.difficulty, da, kw.proximity, 0, coeffSante);
+      const pos     = Math.min(Math.max(Math.round(posRaw), 1), 11);
+      const monthlyPos = Array(12).fill(pos);
+
+      const baseCtr = CTR_TABLE[pos] ?? 0;
+      const ctr     = baseCtr * (budgetRatio / 100);
+      const traffic = getEffectiveVolume(kw, chalandisePercent) * ctr * coeff;
+      const leads   = traffic * (cr[kw.intention as Intention] / 100);
+      const ca      = leads * basketValue * leadConv;
+
+      return {
+        ...kw, pos, monthlyPos, ctr, traffic, leads, ca, coeff,
+        allocatedBudget: 0,
+        firstMonth: null,
+        budgetPerMonth: Array(12).fill(0),
+        nextCtrMonthlyIncrease: null,
+      };
+    });
+  }, [keywords, categories, da, healthScore, basketValue, crTransactionnel, crPreAchat, crIntermediaire, crInformationnel, budgetRatio, businessType, tauxRdv, tauxClosing, chalandisePercent]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* Per-keyword results — DIFFERENTIAL view: the incremental contribution of the
+     paid budget = full − baseline. Positions shown are the achieved (full) ones;
+     traffic / leads / CA are reduced to what the budget actually adds on top of
+     the pre-existing organic presence. Budget only improves ranking, so deltas
+     are clamped at zero. */
+  const differentialKwResults = useMemo(() => {
+    const baseById = new Map(baselineKwResults.map(k => [k.id, k]));
+    return fullKwResults.map(kw => {
+      const base = baseById.get(kw.id);
+      return {
+        ...kw,
+        traffic: Math.max(0, kw.traffic - (base?.traffic ?? 0)),
+        leads:   Math.max(0, kw.leads   - (base?.leads   ?? 0)),
+        ca:      Math.max(0, kw.ca      - (base?.ca      ?? 0)),
+      };
+    });
+  }, [fullKwResults, baselineKwResults]);
+
+  /* Builders shared by the full, baseline and differential views ------------- */
+
+  // Monthly projection from a set of per-keyword results (uses each keyword's
+  // per-month position). Returns the 12-month series + the break-even label.
+  const buildMonthly = (results: typeof fullKwResults) => {
     const monthlyBudget = categories.reduce((s, c) => s + (c.budget ?? DEFAULT_CATEGORY_BUDGET), 0) * (budgetRatio / 100);
     const leadConv = businessType === 'lead' ? (tauxRdv / 100) * (tauxClosing / 100) : 1;
 
@@ -830,7 +883,7 @@ export default function SimulateurSEO() {
 
       // Sum across all keywords using their actual position at month i
       let traffic = 0, leads = 0, ca = 0;
-      kwResults.forEach(kw => {
+      results.forEach(kw => {
         const pm   = kw.monthlyPos[i];
         const ctrM = (CTR_TABLE[pm] ?? 0) * (budgetRatio / 100);
         const t    = getEffectiveVolume(kw, chalandisePercent) * ctrM * kw.coeff * seasonal;
@@ -871,22 +924,61 @@ export default function SimulateurSEO() {
       ? (seasonalityEnabled ? MONTH_NAMES[(startMonth + bev - 1) % 12] : `M${bev}`)
       : null;
     return { monthlyData: data, breakEvenMonth: bevLabel };
-  }, [kwResults, categories, budgetRatio, businessType, tauxRdv, tauxClosing, basketValue, kwMultiplier, seasonalityEnabled, startMonth, highSeasonMonths, highSeasonMultiplier, crTransactionnel, crPreAchat, crIntermediaire, crInformationnel, breakEvenMode]); // eslint-disable-line react-hooks/exhaustive-deps
+  };
 
-  /* Totals */
-  const totals = useMemo(() => {
-    // M+12 monthly rate per keyword (for table footer & funnel)
-    const rawLeads_m12   = kwResults.reduce((s, k) => s + k.leads, 0);
-    const rawCA_m12      = kwResults.reduce((s, k) => s + k.ca, 0);
+  // Differential monthly series = full − baseline month by month. The budget
+  // line stays the real (full) spend; CA/leads/traffic keep only the budget's
+  // incremental contribution, and break-even is recomputed against that.
+  const buildDiffMonthly = (
+    full: ReturnType<typeof buildMonthly>,
+    base: ReturnType<typeof buildMonthly>,
+  ) => {
+    let bev = -1;
+    let cumBudget = 0;
+    let cumCA = 0;
+    const data = full.monthlyData.map((m, i) => {
+      const b = base.monthlyData[i];
+      const ca      = Math.max(0, m.ca      - (b?.ca      ?? 0));
+      const leads   = Math.max(0, m.leads   - (b?.leads   ?? 0));
+      const traffic = Math.max(0, m.traffic - (b?.traffic ?? 0));
+      cumBudget += m.budget;
+      cumCA     += ca;
+      if (bev === -1) {
+        const reached = breakEvenMode === 'cumule' ? cumCA >= cumBudget : ca >= m.budget;
+        if (reached) bev = i + 1;
+      }
+      const cplMonth = leads > 0.5 ? Math.round(m.budget / leads) : null;
+      return {
+        month: m.month,
+        budget: m.budget,
+        ca,
+        budgetCumule: cumBudget,
+        caCumule: cumCA,
+        leads,
+        traffic,
+        cplMonth,
+        isBev: false,
+      };
+    });
+    if (bev > 0) data[bev - 1].isBev = true;
+    const bevLabel = bev > 0
+      ? (seasonalityEnabled ? MONTH_NAMES[(startMonth + bev - 1) % 12] : `M${bev}`)
+      : null;
+    return { monthlyData: data, breakEvenMonth: bevLabel };
+  };
+
+  // Aggregate totals / ROI / funnel from a set of per-keyword results and its
+  // monthly series. Budget figures always reflect the real spend.
+  const buildTotals = (results: typeof fullKwResults, monthly: ReturnType<typeof buildMonthly>['monthlyData']) => {
+    const rawLeads_m12   = results.reduce((s, k) => s + k.leads, 0);
+    const rawCA_m12      = results.reduce((s, k) => s + k.ca, 0);
     const totalLeads     = rawLeads_m12 * kwMultiplier;
     const totalCA_m12    = rawCA_m12    * kwMultiplier; // monthly rate at full maturity
-    const totalTraffic   = kwResults.reduce((s, k) => s + k.traffic, 0) * kwMultiplier;
+    const totalTraffic   = results.reduce((s, k) => s + k.traffic, 0) * kwMultiplier;
 
-    // Annual sums from actual monthly projection (integrates gradual budget activation)
-    const totalCA_annual   = monthlyData.reduce((s, m) => s + m.ca,      0);
-    const totalLeads_annual = monthlyData.reduce((s, m) => s + m.leads,   0);
+    const totalCA_annual   = monthly.reduce((s, m) => s + m.ca,    0);
+    const totalLeads_annual = monthly.reduce((s, m) => s + m.leads, 0);
 
-    // CA exposed to visitors = what they see in the table (M+12 monthly rate)
     const totalCA = totalCA_m12;
 
     const totalImpressions = keywords.reduce((s, k) => s + getEffectiveVolume(k, chalandisePercent), 0) * kwMultiplier;
@@ -896,14 +988,12 @@ export default function SimulateurSEO() {
     const budgetMensuel = categories.reduce((s, c) => s + (c.budget ?? DEFAULT_CATEGORY_BUDGET), 0) * (budgetRatio / 100);
     const budgetTotal   = budgetMensuel * 12;
 
-    // ROI year 1 = annual sum of graduated months; year 2 = year1 + full maturity × 12
     const totalCA_2ans  = totalCA_annual + 12 * totalCA_m12;
     const roi1an     = budgetTotal > 0 ? ((totalCA_annual - budgetTotal) / budgetTotal) * 100 : 0;
     const roiMult1an = budgetTotal > 0 ? totalCA_annual / budgetTotal : 0;
     const roi2ans    = budgetTotal > 0 ? ((totalCA_2ans  - budgetTotal) / budgetTotal) * 100 : 0;
     const roiMult    = budgetTotal > 0 ? totalCA_2ans  / budgetTotal : 0;
 
-    // Funnel (unscaled M+12 monthly rate)
     const baseLeads   = rawLeads_m12;
     const baseRdv     = baseLeads * (tauxRdv / 100);
     const baseClosing = baseRdv   * (tauxClosing / 100);
@@ -914,18 +1004,13 @@ export default function SimulateurSEO() {
       baseLeads, baseRdv, baseClosing,
       totalCA_annual, totalLeads_annual, totalCA_m12,
     };
-  }, [kwResults, monthlyData, keywords, categories, budgetRatio, kwMultiplier, businessType, tauxRdv, tauxClosing, basketValue]);
+  };
 
-  /* Monthly estimated clicks split between classic SEO and generative engines.
-     - Monthly total = real captured traffic of the month = sum over keywords of
-       their traffic at that month's position (already accounts for each keyword's
-       activation "1er mois" and the position ramp), then +2% organic growth/month.
-     - The SEO → GEO mix shifts by +4 points of GEO share every month:
-       M1 = 100% SEO / 0% GEO  →  M12 = 56% SEO / 44% GEO. */
-  const seoGeoData = useMemo(() => {
+  // SEO ↔ GEO click split from a monthly series.
+  const buildSeoGeo = (monthly: ReturnType<typeof buildMonthly>['monthlyData']) => {
     const MONTHLY_VOLUME_GROWTH = 0.02;        // +2% de volume total par mois
     const GEO_SHIFT_PER_MONTH   = 0.04;        // +4 pts de part GEO par mois
-    return monthlyData.map((m, i) => {
+    return monthly.map((m, i) => {
       const total    = m.traffic * Math.pow(1 + MONTHLY_VOLUME_GROWTH, i);
       const geoShare = Math.min(1, GEO_SHIFT_PER_MONTH * i); // i=0 → 0%, i=11 → 44%
       const totalR   = Math.round(total);
@@ -933,15 +1018,34 @@ export default function SimulateurSEO() {
       const seo      = totalR - geo;
       return { month: m.month, seo, geo, total: totalR, geoPct: Math.round(geoShare * 100) };
     });
-  }, [monthlyData]);
+  };
+
+  /* Monthly projections, totals and SEO/GEO split for each view ------------- */
+  const fullMonthly = useMemo(() => buildMonthly(fullKwResults), [fullKwResults, categories, budgetRatio, businessType, tauxRdv, tauxClosing, basketValue, kwMultiplier, seasonalityEnabled, startMonth, highSeasonMonths, highSeasonMultiplier, crTransactionnel, crPreAchat, crIntermediaire, crInformationnel, breakEvenMode, chalandisePercent]); // eslint-disable-line react-hooks/exhaustive-deps
+  const baselineMonthly = useMemo(() => buildMonthly(baselineKwResults), [baselineKwResults, categories, budgetRatio, businessType, tauxRdv, tauxClosing, basketValue, kwMultiplier, seasonalityEnabled, startMonth, highSeasonMonths, highSeasonMultiplier, crTransactionnel, crPreAchat, crIntermediaire, crInformationnel, breakEvenMode, chalandisePercent]); // eslint-disable-line react-hooks/exhaustive-deps
+  const differentialMonthly = useMemo(() => buildDiffMonthly(fullMonthly, baselineMonthly), [fullMonthly, baselineMonthly, breakEvenMode, seasonalityEnabled, startMonth]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const fullTotals = useMemo(() => buildTotals(fullKwResults, fullMonthly.monthlyData), [fullKwResults, fullMonthly, keywords, categories, budgetRatio, kwMultiplier, businessType, tauxRdv, tauxClosing, basketValue, chalandisePercent]); // eslint-disable-line react-hooks/exhaustive-deps
+  const differentialTotals = useMemo(() => buildTotals(differentialKwResults, differentialMonthly.monthlyData), [differentialKwResults, differentialMonthly, keywords, categories, budgetRatio, kwMultiplier, businessType, tauxRdv, tauxClosing, basketValue, chalandisePercent]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const fullSeoGeoData = useMemo(() => buildSeoGeo(fullMonthly.monthlyData), [fullMonthly]); // eslint-disable-line react-hooks/exhaustive-deps
+  const differentialSeoGeoData = useMemo(() => buildSeoGeo(differentialMonthly.monthlyData), [differentialMonthly]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* Display selection — the JSX below always reads these names; they resolve to
+     the full or the differential figures depending on the chosen display mode. */
+  const isDifferential = displayMode === 'differentiel';
+  const kwResults = isDifferential ? differentialKwResults : fullKwResults;
+  const { monthlyData, breakEvenMonth } = isDifferential ? differentialMonthly : fullMonthly;
+  const totals = isDifferential ? differentialTotals : fullTotals;
+  const seoGeoData = isDifferential ? differentialSeoGeoData : fullSeoGeoData;
 
   const hasCatCoeffApplied = useMemo(() => categories.some(c => (c.coeff ?? 1) > 1), [categories]);
 
   // Total annual budget actually allocated across keywords (denominator for the
-  // per-keyword budget share column).
+  // per-keyword budget share column). Budget is identical in both views.
   const totalAllocatedBudget = useMemo(
-    () => kwResults.reduce((s, k) => s + k.allocatedBudget, 0),
-    [kwResults],
+    () => fullKwResults.reduce((s, k) => s + k.allocatedBudget, 0),
+    [fullKwResults],
   );
 
   /* CPL */
@@ -2013,6 +2117,45 @@ export default function SimulateurSEO() {
               SEO
             </div>
           </div>
+
+          {/* AFFICHAGE — bascule Complet / Différentiel */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14,
+            backgroundColor: G2, borderRadius: 10, padding: '8px 12px', border: `1px solid ${G3}`,
+          }}>
+            <span style={{ color: '#7a9e8e', fontSize: 11, fontWeight: 600 }}>Affichage des chiffres</span>
+            <div style={{ display: 'flex', gap: 4, marginLeft: 'auto', backgroundColor: G, borderRadius: 8, padding: 3 }}>
+              {([
+                ['complet', 'Complet', 'Présence existante (DA) + apport du budget'],
+                ['differentiel', 'Différentiel', 'Uniquement l’apport du budget (avec − sans budget)'],
+              ] as const).map(([mode, label, title]) => (
+                <button
+                  key={mode}
+                  onClick={() => setDisplayMode(mode)}
+                  title={title}
+                  style={{
+                    border: 'none', borderRadius: 6, padding: '5px 12px', cursor: 'pointer',
+                    fontSize: 11, fontWeight: 700,
+                    backgroundColor: displayMode === mode ? ORANGE : 'transparent',
+                    color: displayMode === mode ? '#fff' : '#a8c5b5',
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {isDifferential && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14,
+              backgroundColor: 'rgba(232,87,26,0.08)', border: `1px solid ${ORANGE}`,
+              borderRadius: 8, padding: '8px 12px', color: '#d8a98e', fontSize: 11,
+            }}>
+              <span style={{ color: ORANGE, fontSize: 11 }}>◆</span>
+              Vue <strong style={{ color: CREAM }}>Différentiel</strong> : seul l’apport du budget est affiché.
+              La présence organique déjà acquise grâce au DA est soustraite des chiffres.
+            </div>
+          )}
 
           {/* BLOC 1 — MAIN KPIs */}
           <div style={{ display: 'flex', gap: 14, marginBottom: 14 }}>
