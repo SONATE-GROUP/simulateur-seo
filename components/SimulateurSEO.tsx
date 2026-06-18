@@ -116,9 +116,21 @@ const PROX_FACTOR: Record<number, number> = { 1: 1.0, 2: 1.5, 3: 3.0 };
 const BUDGET_IMPACT       = 8;    // ×8 budget impact for ENTERING the top 10 (weighting)
 const POS_CLIMB_BASE      = 1.5;  // >1 → exponential difficulty to climb from 10 to 1
 const DIFFICULTY_EXP      = 1.9;  // sensitivity of budget needs to the difficulty / DA ratio
-const ACCEL_PER_KW        = 0.5;  // cluster synergy: budget discount per extra funded keyword
-const MAX_CLUSTER_SYNERGY = 2.5;  // cap on the topical-authority budget discount
+const MAX_CLUSTER_SYNERGY = 10;   // cap on the topical-authority budget discount
 const REF_HEALTH_SCORE    = 60;   // health score at which the calibration above holds exactly
+
+// Topical-authority synergy: a keyword ranks more easily when the OTHER
+// keywords of the site are themselves well placed, and the more keywords there
+// are. Driven by the average position of the other keywords (lower = better)
+// and their count, per the denominator (11 − avgPos)^(1 + nbKeywords/1000).
+// Returns a budget-discount factor ≥ 1 (1 = no help). weightKeywords scales the
+// whole effect: at 0 the synergy is disabled, at 1 it follows the formula.
+function clusterSynergyFactor(avgPosOthers: number, nbKeywords: number, weightKeywords: number): number {
+  if (!isFinite(avgPosOthers) || nbKeywords <= 1) return 1; // no other keyword → no synergy
+  const base = Math.max(1, 11 - Math.min(11, Math.max(1, avgPosOthers))); // 1 (no help) .. 10 (others at #1)
+  const exponent = weightKeywords * (1 + nbKeywords / 1000);
+  return Math.min(MAX_CLUSTER_SYNERGY, Math.max(1, Math.pow(base, exponent)));
+}
 
 // SEO results lag the spend: the budget invested during a month only moves the
 // ranking the FOLLOWING month(s). A keyword's position in a given month is
@@ -142,7 +154,7 @@ interface PosWeights {
   budget: number;     // ×BUDGET_IMPACT — how much paid budget moves the ranking
   da: number;         // ×PRESENCE_STRENGTH — strength of the existing DA presence
   proximity: number;  // intensity of the exact-vs-thematic differentiation
-  keywords: number;   // ×ACCEL_PER_KW — cluster synergy from the keyword count
+  keywords: number;   // strength of the topical-authority synergy (other keywords)
 }
 const DEFAULT_POS_WEIGHTS: PosWeights = { budget: 1, da: 1, proximity: 1, keywords: 1 };
 
@@ -151,7 +163,7 @@ function computePosRaw(
   difficulty: number,
   da: number,
   proximity: number,
-  nbActiveInCat: number,
+  clusterSynergy: number,
   coeffSante: number,
   weights: PosWeights = DEFAULT_POS_WEIGHTS,
 ): number {
@@ -168,28 +180,34 @@ function computePosRaw(
   // need proportionally more budget to reach the same position.
   const difficultyFactor = Math.pow(difficulty / da, DIFFICULTY_EXP) * proxBudgetFactor;
 
-  // Favourable factors make ranking cheaper: a healthy site and a well-covered
-  // topical cluster (several funded keywords in the category) both help.
+  // A healthy site makes ranking cheaper (budget side).
   const healthFactor  = coeffSante / Math.max(0.01, computeHealthCoeff(REF_HEALTH_SCORE));
-  const clusterFactor = Math.min(MAX_CLUSTER_SYNERGY, 1 + ACCEL_PER_KW * weights.keywords * Math.max(0, nbActiveInCat - 1));
+
+  // Topical-authority synergy lifts the rank DIRECTLY (in positions), so it helps
+  // even with zero paid budget — the other well-placed keywords pull this one up.
+  // clusterSynergy is the precomputed budget-discount-style factor (≥1) from the
+  // other keywords' average position and count (see clusterSynergyFactor); its
+  // log converts it into a rank bonus.
+  const synergyBonus = Math.log(Math.max(1, clusterSynergy)) / Math.LN2;
 
   // Weighted budget required by THIS keyword to reach position 10. A higher
   // budget weight lowers it (budget more effective). The 10 → 1 climb above it
   // is exponentially harder.
   const top10Base = 500 / Math.max(0.01, BUDGET_IMPACT * weights.budget);
-  const scale = difficultyFactor / Math.max(0.01, healthFactor * clusterFactor);
+  const scale = difficultyFactor / Math.max(0.01, healthFactor);
   const top10 = top10Base * scale;
 
-  // Pre-existing organic presence from DA, converted into a virtual budget so
-  // it stacks with the paid budget on the same scale. Positive when the site
-  // authority beats the keyword difficulty; weighted by proximity so exact
-  // themes benefit most. At zero paid budget the position is simply
-  // 10 − presence (the top10 cancels out), so it is purely DA/proximity driven.
+  // Pre-existing organic presence from DA (+ topical-authority synergy),
+  // converted into a virtual budget so it stacks with the paid budget on the
+  // same scale. Positive when the site authority beats the keyword difficulty;
+  // weighted by proximity so exact themes benefit most. At zero paid budget the
+  // position is simply 10 − presence (the top10 cancels out).
   const presence = Math.min(
     MAX_EXISTING_PRESENCE,
     PRESENCE_STRENGTH * weights.da
       * (Math.log(da / Math.max(1, difficulty)) / Math.LN2)
-      * proxPresenceWeight,
+      * proxPresenceWeight
+      + synergyBonus,
   );
   const virtualBudget = top10 * Math.pow(POS_CLIMB_BASE, presence);
 
@@ -693,10 +711,12 @@ export default function SimulateurSEO() {
     });
     keywords.forEach(kw => { if (catNbKws[kw.categoryId] !== undefined) catNbKws[kw.categoryId]++; });
 
-    // Compute posRaw for a keyword given its individual cumulative budget and
-    // how many keywords in its category currently have budget activated
-    const getPosRaw = (kw: Keyword, cumBudget: number, nbActiveInCat: number): number =>
-      computePosRaw(cumBudget, kw.difficulty, da, kw.proximity, nbActiveInCat, coeffSante, posWeights);
+    // Compute posRaw for a keyword given its individual cumulative budget. The
+    // budget allocation is driven by each keyword's intrinsic effectiveness, so
+    // the topical-authority synergy (which depends on the other keywords' final
+    // positions) is left neutral here and applied to the resulting positions.
+    const getPosRaw = (kw: Keyword, cumBudget: number): number =>
+      computePosRaw(cumBudget, kw.difficulty, da, kw.proximity, 1, coeffSante, posWeights);
     const getPos = (raw: number) => Math.min(Math.max(Math.round(raw), 1), 11);
 
     // Potential = Volume × cr[intention] × proximityWeight × ΔCTR / difficulty²
@@ -706,15 +726,15 @@ export default function SimulateurSEO() {
     // Gain réel obtenu en ajoutant CHUNK au budget cumulé : compare la position
     // actuelle à la position après ajout du chunk, plutôt qu'un gain théorique
     // vers la position-1 qui peut ne jamais être atteinte (budget gaspillé sans effet).
-    const getPotential = (kw: Keyword, cumBudget: number, nbActiveInCat: number, budgetDelta = CHUNK): number => {
-      const rawPos = getPosRaw(kw, cumBudget, nbActiveInCat);
+    const getPotential = (kw: Keyword, cumBudget: number, budgetDelta = CHUNK): number => {
+      const rawPos = getPosRaw(kw, cumBudget);
       if (rawPos <= 1) return 0; // already at best position
       // Use continuous (non-rounded) positions for the gain so that a single
       // CHUNK of budget still registers a (small) improvement even when it
       // isn't enough to cross an integer rank boundary — otherwise the
       // allocation loop sees gain=0 for every keyword and stops allocating
       // budget entirely.
-      const rawPosAfter = getPosRaw(kw, cumBudget + budgetDelta, nbActiveInCat);
+      const rawPosAfter = getPosRaw(kw, cumBudget + budgetDelta);
       const gain = interpolateCTR(rawPosAfter) - interpolateCTR(rawPos);
       if (gain <= 0) return 0;
       const crVal = cr[kw.intention as Intention]; // already in %
@@ -755,7 +775,6 @@ export default function SimulateurSEO() {
         let remaining = monthly;
         while (remaining > 0) {
           const baseChunk = Math.min(CHUNK, remaining);
-          const nbActiveInCat = Math.max(1, catActiveCount[cat.id]);
           // Find keyword with highest potential. If 100€ has no CTR effect,
           // retry with 200€, 300€... up to the remaining monthly budget.
           let bestKw: Keyword | null = null;
@@ -763,7 +782,7 @@ export default function SimulateurSEO() {
           let bestChunk = baseChunk;
           for (let testedChunk = baseChunk; testedChunk <= remaining; testedChunk += CHUNK) {
             for (const kw of catKws) {
-              const pot = getPotential(kw, kwCumBudget[kw.id], nbActiveInCat, testedChunk);
+              const pot = getPotential(kw, kwCumBudget[kw.id], testedChunk);
               if (pot > bestPot) { bestPot = pot; bestKw = kw; bestChunk = testedChunk; }
             }
             if (bestPot > 0) break;
@@ -775,7 +794,7 @@ export default function SimulateurSEO() {
             for (let testedChunk = remaining + CHUNK; testedChunk <= remaining + MAX_CTR_PROPOSAL; testedChunk += CHUNK) {
               let hasCtrStep = false;
               for (const kw of catKws) {
-                if (getPotential(kw, kwCumBudget[kw.id], nbActiveInCat, testedChunk) > 0) {
+                if (getPotential(kw, kwCumBudget[kw.id], testedChunk) > 0) {
                   hasCtrStep = true;
                   break;
                 }
@@ -838,36 +857,49 @@ export default function SimulateurSEO() {
   /* Per-keyword results — FULL view (existing organic presence + paid budget) */
   const fullKwResults = useMemo(() => {
     const coeffSante = Math.max(0.01, computeHealthCoeff(healthScore));
+    const nbKeywords = keywords.length;
+    const leadConv = businessType === 'lead' ? (tauxRdv / 100) * (tauxClosing / 100) : 1;
+    const clampCont = (raw: number) => Math.min(11, Math.max(1, raw));
 
-    return keywords.map(kw => {
+    // Lagged cumulative budget (budget delay): a month's ranking is driven by the
+    // budget already accumulated BUDGET_DELAY_MONTHS months earlier.
+    const cumArrs = keywords.map(kw => kwAllocations[kw.id]?.cumulativePerMonth ?? Array(12).fill(0));
+    const lagCumOf = (k: number, i: number) => {
+      const src = i - BUDGET_DELAY_MONTHS;
+      return src >= 0 ? (cumArrs[k][src] ?? 0) : 0;
+    };
+
+    // Pass A — intrinsic (synergy-neutral) positions per keyword and month. These
+    // feed the topical-authority synergy without creating a feedback loop.
+    const basePos: number[][] = keywords.map((kw, k) =>
+      Array.from({ length: 12 }, (_, i) =>
+        clampCont(computePosRaw(lagCumOf(k, i), kw.difficulty, da, kw.proximity, 1, coeffSante, posWeights)),
+      ),
+    );
+    const sumPerMonth = Array(12).fill(0);
+    basePos.forEach(arr => arr.forEach((p, i) => { sumPerMonth[i] += p; }));
+
+    // Pass B — final positions, boosted by the synergy from the OTHER keywords'
+    // average intrinsic position that month (and their count).
+    return keywords.map((kw, k) => {
       const alloc    = kwAllocations[kw.id];
       const coeff    = alloc?.catCoeff ?? 1;
       const totalBudget = alloc?.totalBudget ?? 0;
 
-      const cumArr    = alloc?.cumulativePerMonth ?? Array(12).fill(0);
-      const activeArr = alloc?.activeKwsPerMonth ?? Array(12).fill(1);
-
-      // Monthly positions with a BUDGET_DELAY_MONTHS lag: a month's ranking is
-      // driven by the budget (and cluster synergy) already accumulated that many
-      // months earlier. The first month(s) therefore show only the pre-existing
-      // DA-driven presence — no early return so that baseline still shows from M1.
-      const monthlyPos = cumArr.map((_, i) => {
-        const src = i - BUDGET_DELAY_MONTHS;
-        const lagCum    = src >= 0 ? (cumArr[src] ?? 0)    : 0;
-        const lagActive = src >= 0 ? (activeArr[src] ?? 1) : 0;
-        const pr = computePosRaw(lagCum, kw.difficulty, da, kw.proximity, lagActive, coeffSante, posWeights);
+      const monthlyPos = Array.from({ length: 12 }, (_, i) => {
+        const avgOthers = nbKeywords > 1 ? (sumPerMonth[i] - basePos[k][i]) / (nbKeywords - 1) : Infinity;
+        const synergy = clusterSynergyFactor(avgOthers, nbKeywords, posWeights.keywords);
+        const pr = computePosRaw(lagCumOf(k, i), kw.difficulty, da, kw.proximity, synergy, coeffSante, posWeights);
         return Math.min(Math.max(Math.round(pr), 1), 11);
       });
 
-      // Position at M+12 (last projected month) — kept consistent with the lagged
-      // monthly ramp above.
+      // Position at M+12 (last projected month) — consistent with the ramp above.
       const pos = monthlyPos[11] ?? 11;
 
       const baseCtr = CTR_TABLE[pos] ?? 0;
       const ctr     = baseCtr * (budgetRatio / 100);
       const traffic = getEffectiveVolume(kw, chalandisePercent) * ctr * coeff;
       const leads   = traffic * (cr[kw.intention as Intention] / 100);
-      const leadConv = businessType === 'lead' ? (tauxRdv / 100) * (tauxClosing / 100) : 1;
       const ca      = leads * basketValue * leadConv;
 
       return {
@@ -887,10 +919,21 @@ export default function SimulateurSEO() {
   const baselineKwResults = useMemo(() => {
     const coeffSante = Math.max(0.01, computeHealthCoeff(healthScore));
     const leadConv = businessType === 'lead' ? (tauxRdv / 100) * (tauxClosing / 100) : 1;
+    const nbKeywords = keywords.length;
+    const clampCont = (raw: number) => Math.min(11, Math.max(1, raw));
 
-    return keywords.map(kw => {
+    // Pass A — intrinsic DA-only positions (no budget, no synergy), then Pass B
+    // applies the topical-authority synergy from the other keywords' positions:
+    // a high-DA site with many well-placed keywords lifts the rest organically.
+    const basePos = keywords.map(kw =>
+      clampCont(computePosRaw(0, kw.difficulty, da, kw.proximity, 1, coeffSante, posWeights)));
+    const sumPos = basePos.reduce((s, p) => s + p, 0);
+
+    return keywords.map((kw, k) => {
       const coeff   = categories.find(c => c.id === kw.categoryId)?.coeff ?? 1;
-      const posRaw  = computePosRaw(0, kw.difficulty, da, kw.proximity, 0, coeffSante, posWeights);
+      const avgOthers = nbKeywords > 1 ? (sumPos - basePos[k]) / (nbKeywords - 1) : Infinity;
+      const synergy = clusterSynergyFactor(avgOthers, nbKeywords, posWeights.keywords);
+      const posRaw  = computePosRaw(0, kw.difficulty, da, kw.proximity, synergy, coeffSante, posWeights);
       const pos     = Math.min(Math.max(Math.round(posRaw), 1), 11);
       const monthlyPos = Array(12).fill(pos);
 
@@ -2194,7 +2237,7 @@ export default function SimulateurSEO() {
             <Slider light
               label="Impact du nombre de mots-clés"
               value={weightKeywords} min={0} max={200} step={5} unit="%"
-              hint="Plus élevé : un cluster bien fourni se positionne plus facilement."
+              hint="Synergie : plus les autres mots-clés sont nombreux et bien placés, mieux chaque mot-clé se positionne."
               onChange={v => update({ weightKeywords: v })}
             />
           </div>
