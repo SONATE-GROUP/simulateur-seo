@@ -904,6 +904,13 @@ export default function SimulateurSEO() {
 
   const hasCatCoeffApplied = useMemo(() => categories.some(c => (c.coeff ?? 1) > 1), [categories]);
 
+  // Total annual budget actually allocated across keywords (denominator for the
+  // per-keyword budget share column).
+  const totalAllocatedBudget = useMemo(
+    () => kwResults.reduce((s, k) => s + k.allocatedBudget, 0),
+    [kwResults],
+  );
+
   /* CPL */
   const cpl = useMemo(() => {
     const { totalLeads_annual: tl, budgetTotal: bt } = totals;
@@ -2286,7 +2293,7 @@ export default function SimulateurSEO() {
                       { label: businessType === 'ecommerce' ? 'Ventes / mois' : 'Leads / mois', align: 'right', starred: hasCatCoeffApplied },
                       { label: 'CA / mois',        align: 'right', starred: hasCatCoeffApplied },
                       { label: 'Intention',        align: 'center' },
-                      { label: 'Budget / an',      align: 'right'  },
+                      { label: '% budget / an',    align: 'right'  },
                       { label: '1er mois',         align: 'center' },
                     ].map(({ label, align, starred }) => (
                       <th key={label} style={{
@@ -2379,7 +2386,7 @@ export default function SimulateurSEO() {
                                 paddingBottom: 1,
                               }}
                             >
-                              {kw.allocatedBudget > 0 ? fmtC(kw.allocatedBudget) : '-'}
+                              {kw.allocatedBudget > 0 && totalAllocatedBudget > 0 ? fmtP((kw.allocatedBudget / totalAllocatedBudget) * 100) : '-'}
                             </span>
                             {showBudgetTip && kw.allocatedBudget > 0 && (
                               <div style={{
@@ -2469,7 +2476,7 @@ export default function SimulateurSEO() {
                     <td style={{ padding: '10px 8px', textAlign: 'right', color: CREAM, fontWeight: 700 }}>{fmtLeads(totals.totalLeads)}</td>
                     <td style={{ padding: '10px 8px', textAlign: 'right', color: ORANGE, fontWeight: 800, fontSize: 14 }}>{fmtC(totals.totalCA)}</td>
                     <td></td>
-                    <td style={{ padding: '10px 8px', textAlign: 'right', color: '#a8c5b5', fontWeight: 700 }}>{fmtC(kwResults.reduce((s, k) => s + k.allocatedBudget, 0))}</td>
+                    <td style={{ padding: '10px 8px', textAlign: 'right', color: '#a8c5b5', fontWeight: 700 }}>{totalAllocatedBudget > 0 ? fmtP(100) : '-'}</td>
                     <td></td>
                   </tr>
                 </tfoot>
