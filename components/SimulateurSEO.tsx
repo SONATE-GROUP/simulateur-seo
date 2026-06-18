@@ -150,6 +150,8 @@ function computeHealthCoeff(score: number): number {
   return 0.88 + (s - 70) * 0.004;
 }
 
+const DEFAULT_CATEGORY_BUDGET = 1600; // € — budget mensuel par défaut d'une catégorie
+
 const DEFAULT_KEYWORDS: Keyword[] = [
   { id: '1', keyword: 'acheter graines tomates',   volume: 2400, difficulty: 35, proximity: 1, intention: 1, topic: 'Graines tomates', categoryId: 'cat1', zone: 'chalandise' },
   { id: '2', keyword: 'meilleures graines potager', volume: 1800, difficulty: 42, proximity: 2, intention: 2, topic: 'Graines potager', categoryId: 'cat1', zone: 'chalandise' },
@@ -499,7 +501,7 @@ export default function SimulateurSEO() {
     const report = params.get('report');
     const migrate = (s: SimState): SimState => ({
       ...s,
-      categories: (s.categories ?? []).map(c => ({ ...c, budget: c.budget ?? 700 })),
+      categories: (s.categories ?? []).map(c => ({ ...c, budget: c.budget ?? DEFAULT_CATEGORY_BUDGET })),
       keywords: (s.keywords ?? []).map(k => ({ ...k, zone: k.zone ?? 'chalandise' })),
       chalandisePercent: s.chalandisePercent ?? 100,
       breakEvenMode: s.breakEvenMode ?? 'mensuel',
@@ -594,7 +596,7 @@ export default function SimulateurSEO() {
     const catNbKws:  Record<string, number> = {};
     const catCoeff:  Record<string, number> = {};
     categories.forEach(cat => {
-      catBudget[cat.id] = (cat.budget ?? 700) * (budgetRatio / 100);
+      catBudget[cat.id] = (cat.budget ?? DEFAULT_CATEGORY_BUDGET) * (budgetRatio / 100);
       catNbKws[cat.id]  = 0;
       catCoeff[cat.id]  = cat.coeff ?? 1;
     });
@@ -784,7 +786,7 @@ export default function SimulateurSEO() {
 
   /* Monthly projection — computed directly from per-keyword monthly positions */
   const { monthlyData, breakEvenMonth } = useMemo(() => {
-    const monthlyBudget = categories.reduce((s, c) => s + (c.budget ?? 700), 0) * (budgetRatio / 100);
+    const monthlyBudget = categories.reduce((s, c) => s + (c.budget ?? DEFAULT_CATEGORY_BUDGET), 0) * (budgetRatio / 100);
     const leadConv = businessType === 'lead' ? (tauxRdv / 100) * (tauxClosing / 100) : 1;
 
     let bev = -1;
@@ -860,7 +862,7 @@ export default function SimulateurSEO() {
     const topics    = new Set(keywords.map(k => k.topic).filter(Boolean));
     const nbPages   = (topics.size || keywords.length) * kwMultiplier;
     const nbKeywords = keywords.length * kwMultiplier;
-    const budgetMensuel = categories.reduce((s, c) => s + (c.budget ?? 700), 0) * (budgetRatio / 100);
+    const budgetMensuel = categories.reduce((s, c) => s + (c.budget ?? DEFAULT_CATEGORY_BUDGET), 0) * (budgetRatio / 100);
     const budgetTotal   = budgetMensuel * 12;
 
     // ROI year 1 = annual sum of graduated months; year 2 = year1 + full maturity × 12
@@ -1036,7 +1038,7 @@ export default function SimulateurSEO() {
       if (!newKws.length) return;
       const newCats: Category[] = Object.entries(catNameToId).map(([name, id]) => {
         const nbInCat = newKws.filter(k => k.categoryId === id).length;
-        return { id, name, budget: nbInCat * 700 };
+        return { id, name, budget: DEFAULT_CATEGORY_BUDGET };
       });
       const newCatIds = new Set(newCats.map(c => c.id));
       setState(s => ({
@@ -1065,7 +1067,7 @@ export default function SimulateurSEO() {
 
   const addCategory = () => {
     const id = uid();
-    setState(s => ({ ...s, categories: [...s.categories, { id, name: 'Nouvelle catégorie', budget: 2100 }] }));
+    setState(s => ({ ...s, categories: [...s.categories, { id, name: 'Nouvelle catégorie', budget: DEFAULT_CATEGORY_BUDGET }] }));
     setOpenCats(prev => { const n = new Set(prev); n.add(id); return n; });
   };
 
@@ -1721,7 +1723,7 @@ export default function SimulateurSEO() {
                     onChange={e => {
                       if (e.target.checked) {
                         setSelectedCatIds(new Set(categories.map(c => c.id)));
-                        const avg = Math.round(categories.reduce((s, c) => s + (c.budget ?? 700), 0) / categories.length / 100) * 100;
+                        const avg = Math.round(categories.reduce((s, c) => s + (c.budget ?? DEFAULT_CATEGORY_BUDGET), 0) / categories.length / 100) * 100;
                         setBulkBudget(String(avg));
                       } else {
                         setSelectedCatIds(new Set());
@@ -1755,7 +1757,7 @@ export default function SimulateurSEO() {
 
                 {categories.map(cat => {
                   const nb  = keywords.filter(k => k.categoryId === cat.id).length;
-                  const bpk = nb > 0 ? (cat.budget ?? 700) / nb : (cat.budget ?? 700);
+                  const bpk = nb > 0 ? (cat.budget ?? DEFAULT_CATEGORY_BUDGET) / nb : (cat.budget ?? DEFAULT_CATEGORY_BUDGET);
                   const coeff = (bpk / 500) ** 2;
                   const isSelected = selectedCatIds.has(cat.id);
                   return (
@@ -1768,7 +1770,7 @@ export default function SimulateurSEO() {
                             const next = new Set(prev);
                             if (e.target.checked) {
                               next.add(cat.id);
-                              if (prev.size === 0) setBulkBudget(String(cat.budget ?? 700));
+                              if (prev.size === 0) setBulkBudget(String(cat.budget ?? DEFAULT_CATEGORY_BUDGET));
                             } else {
                               next.delete(cat.id);
                               if (next.size === 0) setBulkBudget('');
@@ -1782,7 +1784,7 @@ export default function SimulateurSEO() {
                         <Slider
                           light
                           label={cat.name}
-                          value={cat.budget ?? 700}
+                          value={cat.budget ?? DEFAULT_CATEGORY_BUDGET}
                           min={0} max={5000} step={100} unit="€"
                           hint={`${nb} kw → ${fmtC(Math.round(bpk))}/kw · coeff ×${coeff.toFixed(2)} ${coeff >= 1 ? '↑' : '↓'}`}
                           onChange={v => updateCategoryBudget(cat.id, v)}
@@ -1796,7 +1798,7 @@ export default function SimulateurSEO() {
                   <Slider
                     light
                     label="Total mensuel"
-                    value={Math.round(categories.reduce((s, c) => s + (c.budget ?? 700), 0) * (budgetRatio / 100))}
+                    value={Math.round(categories.reduce((s, c) => s + (c.budget ?? DEFAULT_CATEGORY_BUDGET), 0) * (budgetRatio / 100))}
                     min={0}
                     max={20000}
                     step={100}
@@ -1806,7 +1808,7 @@ export default function SimulateurSEO() {
                     onChange={rawTargetTotal => {
                       if (categories.length === 0) return;
                       const targetTotal = Math.min(rawTargetTotal, 20000);
-                      const rawSum = categories.reduce((s, c) => s + (c.budget ?? 700), 0);
+                      const rawSum = categories.reduce((s, c) => s + (c.budget ?? DEFAULT_CATEGORY_BUDGET), 0);
                       const targetRawSum = budgetRatio > 0 ? targetTotal / (budgetRatio / 100) : 0;
                       if (rawSum === 0) {
                         const equal = Math.round(targetRawSum / categories.length / 100) * 100;
@@ -1814,7 +1816,7 @@ export default function SimulateurSEO() {
                       } else {
                         setState(s => ({ ...s, categories: s.categories.map(c => ({
                           ...c,
-                          budget: Math.round((c.budget ?? 700) / rawSum * targetRawSum / 100) * 100,
+                          budget: Math.round((c.budget ?? DEFAULT_CATEGORY_BUDGET) / rawSum * targetRawSum / 100) * 100,
                         })) }));
                       }
                     }}
@@ -2502,7 +2504,7 @@ export default function SimulateurSEO() {
                 {categories.map(cat => (
                   <div key={cat.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: `1px solid ${G3}` }}>
                     <span style={{ color: '#7a9e8e', fontSize: 11 }}>{cat.name}</span>
-                    <span style={{ color: CREAM, fontSize: 11, fontWeight: 600 }}>{fmtC(Math.round((cat.budget ?? 700) * (budgetRatio / 100)))}<span style={{ color: '#5a7a6a', fontWeight: 400 }}> /mois</span></span>
+                    <span style={{ color: CREAM, fontSize: 11, fontWeight: 600 }}>{fmtC(Math.round((cat.budget ?? DEFAULT_CATEGORY_BUDGET) * (budgetRatio / 100)))}<span style={{ color: '#5a7a6a', fontWeight: 400 }}> /mois</span></span>
                   </div>
                 ))}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', marginTop: 2 }}>
