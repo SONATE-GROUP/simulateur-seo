@@ -4,8 +4,8 @@ import { useState, useMemo, useRef, useEffect, CSSProperties } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import * as XLSX from 'xlsx';
 import {
-  ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, ReferenceLine, AreaChart, Area,
+  ComposedChart, BarChart, Bar, Line, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer, ReferenceLine,
 } from 'recharts';
 
 /* ─── TYPES ──────────────────────────────────────────────────── */
@@ -414,12 +414,6 @@ function ChartTooltip({ active, payload, label }: {
 }
 
 /* ─── MAIN COMPONENT ─────────────────────────────────────────── */
-// SEO → GEO paradigm shift: share of the captured search traffic that comes
-// from generative answer engines (ChatGPT, Perplexity, AI Overviews…) rather
-// than from classic blue-link SEO. This share grows month over month as search
-// behaviour migrates toward generative engines.
-const GEO_SHARE_START = 0.08; // part GEO au 1er mois
-const GEO_SHARE_END   = 0.45; // part GEO au 12e mois
 
 /* ─── NUM INPUT ──────────────────────────────────────────────── */
 function NumInput({ value, min = 0, max, onChange, style }: {
@@ -845,16 +839,6 @@ export default function SimulateurSEO() {
     return { monthlyData: data, breakEvenMonth: bevLabel };
   }, [kwResults, categories, budgetRatio, businessType, tauxRdv, tauxClosing, basketValue, kwMultiplier, seasonalityEnabled, startMonth, highSeasonMonths, highSeasonMultiplier, crTransactionnel, crPreAchat, crIntermediaire, crInformationnel, breakEvenMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* Monthly traffic split between classic SEO and generative engines (GEO).
-     Total height = estimated monthly traffic (grows as positions mature); the
-     GEO share rises over the year to illustrate the SEO → GEO paradigm shift. */
-  const seoGeoData = useMemo(() => monthlyData.map((m, i) => {
-    const geoShare = GEO_SHARE_START + (GEO_SHARE_END - GEO_SHARE_START) * (i / 11);
-    const geo = Math.round(m.traffic * geoShare);
-    const seo = Math.max(0, m.traffic - geo);
-    return { month: m.month, seo, geo, total: m.traffic, geoPct: Math.round(geoShare * 100) };
-  }), [monthlyData]);
-
   /* Totals */
   const totals = useMemo(() => {
     // M+12 monthly rate per keyword (for table footer & funnel)
@@ -897,6 +881,24 @@ export default function SimulateurSEO() {
       totalCA_annual, totalLeads_annual, totalCA_m12,
     };
   }, [kwResults, monthlyData, keywords, categories, budgetRatio, kwMultiplier, businessType, tauxRdv, tauxClosing, basketValue]);
+
+  /* Monthly estimated clicks split between classic SEO and generative engines.
+     - Month 1 total = estimated click volume; the total grows +2% each month.
+     - The SEO → GEO mix shifts by +4 points of GEO share every month:
+       M1 = 100% SEO / 0% GEO  →  M12 = 56% SEO / 44% GEO. */
+  const seoGeoData = useMemo(() => {
+    const base = totals.totalTraffic;          // volume de clics estimé (M1)
+    const MONTHLY_VOLUME_GROWTH = 0.02;        // +2% de volume total par mois
+    const GEO_SHIFT_PER_MONTH   = 0.04;        // +4 pts de part GEO par mois
+    return monthlyData.map((m, i) => {
+      const total    = base * Math.pow(1 + MONTHLY_VOLUME_GROWTH, i);
+      const geoShare = Math.min(1, GEO_SHIFT_PER_MONTH * i); // i=0 → 0%, i=11 → 44%
+      const totalR   = Math.round(total);
+      const geo      = Math.round(total * geoShare);
+      const seo      = totalR - geo;
+      return { month: m.month, seo, geo, total: totalR, geoPct: Math.round(geoShare * 100) };
+    });
+  }, [monthlyData, totals.totalTraffic]);
 
   const hasCatCoeffApplied = useMemo(() => categories.some(c => (c.coeff ?? 1) > 1), [categories]);
 
@@ -2224,48 +2226,38 @@ export default function SimulateurSEO() {
             </div>
           </div>
 
-          {/* BLOC 4c — TRAFIC SEO vs GEO */}
+          {/* BLOC 4c — CLICS SEO vs GEO */}
           <div style={card}>
             <div style={{ ...secTitle, marginBottom: 4 }}>
-              <span style={{ color: ORANGE, fontSize: 10 }}>◆</span> Trafic estimé par mois : SEO → GEO
+              <span style={{ color: ORANGE, fontSize: 10 }}>◆</span> Volume de clics estimé par mois : SEO → GEO
             </div>
             <div style={{ color: '#5a7a6a', fontSize: 11, marginBottom: 12 }}>
-              Volume de trafic mensuel capté, réparti entre référencement classique (SEO) et moteurs de réponse génératifs (GEO : ChatGPT, Perplexity, AI Overviews…). Le trafic monte en puissance et la part GEO progresse au fil de l&apos;année — illustration du glissement des recherches vers l&apos;IA générative.
+              Chaque barre représente le volume de clics estimé du mois (croissance de +2 %/mois), réparti entre référencement classique (SEO) et moteurs de réponse génératifs (GEO : ChatGPT, Perplexity, AI Overviews…). La part GEO progresse de +4 pts par mois : 0 % au 1er mois, 44 % au 12e — illustration du glissement des recherches vers l&apos;IA générative.
             </div>
             <ResponsiveContainer width="100%" height={220}>
-              <AreaChart data={seoGeoData} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}>
-                <defs>
-                  <linearGradient id="seoGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={G4} stopOpacity={0.9} />
-                    <stop offset="100%" stopColor={G4} stopOpacity={0.35} />
-                  </linearGradient>
-                  <linearGradient id="geoGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={ORANGE} stopOpacity={0.9} />
-                    <stop offset="100%" stopColor={ORANGE} stopOpacity={0.4} />
-                  </linearGradient>
-                </defs>
+              <BarChart data={seoGeoData} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={G3} vertical={false} />
                 <XAxis dataKey="month" tick={{ fill: '#7a9e8e', fontSize: 11 }} axisLine={{ stroke: G3 }} tickLine={false} />
                 <YAxis tick={{ fill: '#7a9e8e', fontSize: 10 }} axisLine={false} tickLine={false} width={44}
                   tickFormatter={(v: number) => fmtN(v)} />
                 <Tooltip
-                  cursor={{ stroke: G3 }}
+                  cursor={{ fill: 'rgba(255,255,255,0.04)' }}
                   content={({ active, payload, label }) => active && payload?.length ? (
                     <div style={{ background: G2, border: `1px solid ${G3}`, borderRadius: 8, padding: '8px 12px', fontSize: 12 }}>
                       <div style={{ color: CREAM, fontWeight: 700, marginBottom: 4 }}>{label}</div>
-                      <div style={{ color: G4 }}>SEO : {fmtN(Number(payload.find(p => p.dataKey === 'seo')?.value ?? 0))} visites</div>
-                      <div style={{ color: ORANGE }}>GEO : {fmtN(Number(payload.find(p => p.dataKey === 'geo')?.value ?? 0))} visites <span style={{ color: '#5a7a6a' }}>({payload[0]?.payload?.geoPct}%)</span></div>
-                      <div style={{ color: CREAM, marginTop: 4, borderTop: `1px solid ${G3}`, paddingTop: 4 }}>Total : {fmtN(Number(payload[0]?.payload?.total ?? 0))} visites</div>
+                      <div style={{ color: G4 }}>SEO : {fmtN(Number(payload.find(p => p.dataKey === 'seo')?.value ?? 0))} clics <span style={{ color: '#5a7a6a' }}>({100 - Number(payload[0]?.payload?.geoPct ?? 0)}%)</span></div>
+                      <div style={{ color: ORANGE }}>GEO : {fmtN(Number(payload.find(p => p.dataKey === 'geo')?.value ?? 0))} clics <span style={{ color: '#5a7a6a' }}>({payload[0]?.payload?.geoPct}%)</span></div>
+                      <div style={{ color: CREAM, marginTop: 4, borderTop: `1px solid ${G3}`, paddingTop: 4 }}>Total : {fmtN(Number(payload[0]?.payload?.total ?? 0))} clics</div>
                     </div>
                   ) : null}
                 />
-                <Area type="monotone" dataKey="seo" stackId="1" stroke={G4} strokeWidth={2} fill="url(#seoGrad)" name="SEO" />
-                <Area type="monotone" dataKey="geo" stackId="1" stroke={ORANGE} strokeWidth={2} fill="url(#geoGrad)" name="GEO" />
-              </AreaChart>
+                <Bar dataKey="seo" stackId="clicks" fill={G4} name="SEO" maxBarSize={40} />
+                <Bar dataKey="geo" stackId="clicks" fill={ORANGE} name="GEO" radius={[4, 4, 0, 0]} maxBarSize={40} />
+              </BarChart>
             </ResponsiveContainer>
             <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 10, color: '#5a7a6a' }}>
               <span><span style={{ display: 'inline-block', width: 10, height: 10, backgroundColor: G4, borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} />SEO — référencement classique</span>
-              <span><span style={{ display: 'inline-block', width: 10, height: 10, backgroundColor: ORANGE, borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} />GEO — moteurs génératifs ({Math.round(GEO_SHARE_START * 100)}% → {Math.round(GEO_SHARE_END * 100)}% du trafic)</span>
+              <span><span style={{ display: 'inline-block', width: 10, height: 10, backgroundColor: ORANGE, borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} />GEO — moteurs génératifs (0 % → 44 % des clics)</span>
             </div>
           </div>
 
