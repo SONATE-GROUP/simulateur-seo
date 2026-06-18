@@ -210,6 +210,7 @@ const G4 = '#3a5c4e';
 const G5 = '#233d30';
 const CREAM  = '#f5f0e8';
 const ORANGE = '#e8571a';
+const SEO_CLR = '#4fc3d6'; // bright teal for the SEO series — readable on the dark card
 
 /* ─── FORMATTERS ─────────────────────────────────────────────── */
 const fmtN = (n: number) =>
@@ -2245,18 +2246,18 @@ export default function SimulateurSEO() {
                   content={({ active, payload, label }) => active && payload?.length ? (
                     <div style={{ background: G2, border: `1px solid ${G3}`, borderRadius: 8, padding: '8px 12px', fontSize: 12 }}>
                       <div style={{ color: CREAM, fontWeight: 700, marginBottom: 4 }}>{label}</div>
-                      <div style={{ color: G4 }}>SEO : {fmtN(Number(payload.find(p => p.dataKey === 'seo')?.value ?? 0))} clics <span style={{ color: '#5a7a6a' }}>({100 - Number(payload[0]?.payload?.geoPct ?? 0)}%)</span></div>
+                      <div style={{ color: SEO_CLR }}>SEO : {fmtN(Number(payload.find(p => p.dataKey === 'seo')?.value ?? 0))} clics <span style={{ color: '#5a7a6a' }}>({100 - Number(payload[0]?.payload?.geoPct ?? 0)}%)</span></div>
                       <div style={{ color: ORANGE }}>GEO : {fmtN(Number(payload.find(p => p.dataKey === 'geo')?.value ?? 0))} clics <span style={{ color: '#5a7a6a' }}>({payload[0]?.payload?.geoPct}%)</span></div>
                       <div style={{ color: CREAM, marginTop: 4, borderTop: `1px solid ${G3}`, paddingTop: 4 }}>Total : {fmtN(Number(payload[0]?.payload?.total ?? 0))} clics</div>
                     </div>
                   ) : null}
                 />
-                <Bar dataKey="seo" stackId="clicks" fill={G4} name="SEO" maxBarSize={40} />
+                <Bar dataKey="seo" stackId="clicks" fill={SEO_CLR} name="SEO" maxBarSize={40} />
                 <Bar dataKey="geo" stackId="clicks" fill={ORANGE} name="GEO" radius={[4, 4, 0, 0]} maxBarSize={40} />
               </BarChart>
             </ResponsiveContainer>
             <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 10, color: '#5a7a6a' }}>
-              <span><span style={{ display: 'inline-block', width: 10, height: 10, backgroundColor: G4, borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} />SEO — référencement classique</span>
+              <span><span style={{ display: 'inline-block', width: 10, height: 10, backgroundColor: SEO_CLR, borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} />SEO — référencement classique</span>
               <span><span style={{ display: 'inline-block', width: 10, height: 10, backgroundColor: ORANGE, borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} />GEO — moteurs génératifs (0 % → 44 % des clics)</span>
             </div>
           </div>
