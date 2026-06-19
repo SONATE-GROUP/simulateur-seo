@@ -228,7 +228,9 @@ function computePosRaw(
   const effectiveBudget = cumBudget + virtualBudget;
   if (effectiveBudget <= 0) return 100;
 
-  return 10 - Math.log(effectiveBudget / top10) / Math.log(POS_CLIMB_BASE);
+  // Position #1 is the best achievable: never return below 1 (more budget than
+  // needed for #1 cannot push the rank lower than the first spot).
+  return Math.max(1, 10 - Math.log(effectiveBudget / top10) / Math.log(POS_CLIMB_BASE));
 }
 
 // Piecewise-linear coefficient from the Semrush Health Score:
