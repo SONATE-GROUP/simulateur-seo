@@ -84,6 +84,20 @@ function interpolateCTR(rawPos: number): number {
   return (CTR_TABLE[lower] ?? 0) + ((CTR_TABLE[upper] ?? 0) - (CTR_TABLE[lower] ?? 0)) * frac;
 }
 
+// Inverse of the CTR table: the (continuous) rank whose CTR equals a given
+// value. Used by the differential view so the position shown is coherent with
+// the *incremental* traffic (an incremental CTR of 0 → rank 11, i.e. "no gain").
+function ctrToPos(ctr: number): number {
+  if (ctr >= (CTR_TABLE[1] ?? 0)) return 1;
+  if (ctr <= 0) return 11;
+  for (let p = 1; p < 11; p++) {
+    const hi = CTR_TABLE[p] ?? 0;
+    const lo = CTR_TABLE[p + 1] ?? 0;
+    if (ctr <= hi && ctr >= lo) return hi === lo ? p : p + (hi - ctr) / (hi - lo);
+  }
+  return 11;
+}
+
 const INTENT_LABEL: Record<number, string> = {
   1: 'Transactionnel', 2: 'Navigationnelle', 3: 'Commerciale', 4: 'Informationnel',
 };
@@ -199,16 +213,16 @@ function computePosRaw(
 
   // Pre-existing organic presence from DA (+ topical-authority synergy),
   // converted into a virtual budget so it stacks with the paid budget on the
-  // same scale. Positive when the site authority beats the keyword difficulty;
-  // weighted by proximity so exact themes benefit most. At zero paid budget the
-  // position is simply 10 − presence (the top10 cancels out).
-  const presence = Math.min(
-    MAX_EXISTING_PRESENCE,
-    PRESENCE_STRENGTH * weights.da
-      * (Math.log(da / Math.max(1, difficulty)) / Math.LN2)
-      * proxPresenceWeight
-      + synergyBonus,
-  );
+  // same scale. Positive when the site authority beats the keyword difficulty.
+  const daPresenceBase = PRESENCE_STRENGTH * weights.da
+    * (Math.log(da / Math.max(1, difficulty)) / Math.LN2);
+  // Proximity only attenuates a POSITIVE presence (the free boost a strong DA
+  // gives to on-topic keywords — exact themes benefit most). It must NOT soften
+  // the penalty of a hard keyword (da < difficulty): otherwise a thematic
+  // keyword (weight 0.15) would end up LESS penalised than the exact one
+  // (weight 1.0), wrongly prioritising distant themes when the DA is low.
+  const daPresence = daPresenceBase >= 0 ? daPresenceBase * proxPresenceWeight : daPresenceBase;
+  const presence = Math.min(MAX_EXISTING_PRESENCE, daPresence + synergyBonus);
   const virtualBudget = top10 * Math.pow(POS_CLIMB_BASE, presence);
 
   const effectiveBudget = cumBudget + virtualBudget;
@@ -1010,16 +1024,26 @@ export default function SimulateurSEO() {
   }, [keywords, categories, da, healthScore, basketValue, crTransactionnel, crPreAchat, crIntermediaire, crInformationnel, budgetRatio, businessType, tauxRdv, tauxClosing, chalandisePercent, posWeights]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* Per-keyword results — DIFFERENTIAL view: the incremental contribution of the
-     paid budget = full − baseline. Positions shown are the achieved (full) ones;
-     traffic / leads / CA are reduced to what the budget actually adds on top of
-     the pre-existing organic presence. Budget only improves ranking, so deltas
-     are clamped at zero. */
+     paid budget = full − baseline. traffic / leads / CA keep only what the budget
+     adds on top of the pre-existing organic presence. The position shown is the
+     rank EQUIVALENT to that incremental traffic (inverse CTR of the CTR gain), so
+     position and traffic stay coherent: when a high DA already ranks the keyword,
+     the budget adds nothing → incremental rank 11 and 0 incremental traffic
+     (instead of the previous "position #1 yet ~0 traffic", which was confusing).
+     Budget only improves ranking, so deltas are clamped at zero. */
   const differentialKwResults = useMemo(() => {
     const baseById = new Map(baselineKwResults.map(k => [k.id, k]));
+    const diffPos = (fullPos: number, basePos: number) => {
+      const gain = (CTR_TABLE[fullPos] ?? 0) - (CTR_TABLE[basePos] ?? 0);
+      return Math.min(11, Math.max(1, Math.round(ctrToPos(Math.max(0, gain)))));
+    };
     return fullKwResults.map(kw => {
       const base = baseById.get(kw.id);
+      const monthlyPos = kw.monthlyPos.map((fp, i) => diffPos(fp, base?.monthlyPos[i] ?? 11));
       return {
         ...kw,
+        pos: diffPos(kw.pos, base?.pos ?? 11),
+        monthlyPos,
         traffic: Math.max(0, kw.traffic - (base?.traffic ?? 0)),
         leads:   Math.max(0, kw.leads   - (base?.leads   ?? 0)),
         ca:      Math.max(0, kw.ca      - (base?.ca      ?? 0)),
