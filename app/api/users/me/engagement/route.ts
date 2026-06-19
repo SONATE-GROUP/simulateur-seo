@@ -5,7 +5,7 @@ import { db, initDb } from '@/lib/turso';
 
 export const runtime = 'nodejs';
 
-/* POST /api/users/me/engagement — accumulate overall time spent / interactions for the
+/* POST /api/users/me/engagement - accumulate overall time spent / interactions for the
    logged-in user, independently of whether a report is open/saved. Fire-and-forget. */
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);

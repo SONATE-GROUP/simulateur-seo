@@ -6,7 +6,7 @@ import crypto from 'crypto';
 
 export const runtime = 'nodejs';
 
-/* POST /api/invitations/resend — resend invitation by id (global admin only) */
+/* POST /api/invitations/resend - resend invitation by id (global admin only) */
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.isGlobalAdmin) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });

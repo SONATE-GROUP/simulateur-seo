@@ -5,7 +5,7 @@ import { db, initDb } from '@/lib/turso';
 
 export const runtime = 'nodejs';
 
-/* POST /api/reports — save a new report */
+/* POST /api/reports - save a new report */
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-/* GET /api/reports — list reports (all for admin, workspace-filtered for members) */
+/* GET /api/reports - list reports (all for admin, workspace-filtered for members) */
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });

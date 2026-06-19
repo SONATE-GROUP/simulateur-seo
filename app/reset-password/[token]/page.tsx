@@ -45,7 +45,7 @@ export default function ResetPasswordPage() {
     const data = await res.json();
     if (!res.ok) { setSaveErr(data.error || 'Erreur'); setSaving(false); return; }
     setDone(true);
-    // Try auto-login — if it fails, redirect to login page
+    // Try auto-login - if it fails, redirect to login page
     await signIn('credentials', { password, redirect: false }).catch(() => {});
     setTimeout(() => router.push('/login'), 1500);
   };

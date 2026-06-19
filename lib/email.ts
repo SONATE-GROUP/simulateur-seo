@@ -40,7 +40,7 @@ export async function sendInvitationEmail({
   const text = `Vous avez été invité(e) à rejoindre ${appName} par ${invitedBy}.\n\nActivez votre compte ici : ${inviteUrl}\n\nCe lien expire dans 7 jours.`;
 
   if (!apiKey) {
-    console.log('\n=== INVITATION EMAIL (dev — BREVO_API_KEY manquante) ===');
+    console.log('\n=== INVITATION EMAIL (dev - BREVO_API_KEY manquante) ===');
     console.log(`To: ${to}`);
     console.log(`Invite URL: ${inviteUrl}`);
     console.log('=======================================================\n');
@@ -70,5 +70,5 @@ export async function sendInvitationEmail({
   }
 
   const data = await res.json();
-  console.log('[Brevo] Email envoyé à', to, '— messageId:', data.messageId);
+  console.log('[Brevo] Email envoyé à', to, '- messageId:', data.messageId);
 }

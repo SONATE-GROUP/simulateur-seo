@@ -5,7 +5,7 @@ import { db, initDb } from '@/lib/turso';
 
 export const runtime = 'nodejs';
 
-/* GET /api/users/[id]/access — workspaces + reports for a user (global admin only) */
+/* GET /api/users/[id]/access - workspaces + reports for a user (global admin only) */
 export async function GET(
   _req: NextRequest,
   { params }: { params: { id: string } }

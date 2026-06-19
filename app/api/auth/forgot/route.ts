@@ -5,7 +5,7 @@ import crypto from 'crypto';
 export const runtime = 'nodejs';
 function uid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
 
-/* POST /api/auth/forgot — generate a password reset link (public) */
+/* POST /api/auth/forgot - generate a password reset link (public) */
 export async function POST(req: NextRequest) {
   await initDb();
   const { email } = await req.json();

@@ -22,7 +22,7 @@ export async function GET(
       return NextResponse.json({ error: 'Rapport introuvable' }, { status: 404 });
     }
 
-    // Track view if user is authenticated (fire-and-forget — never blocks the response)
+    // Track view if user is authenticated (fire-and-forget - never blocks the response)
     getServerSession(authOptions).then(session => {
       if (!session?.user?.id) return;
       db.execute({
@@ -76,7 +76,7 @@ export async function DELETE(
   }
 }
 
-/* PATCH /api/reports/[id] — move report to another workspace (admin or source-workspace owner) */
+/* PATCH /api/reports/[id] - move report to another workspace (admin or source-workspace owner) */
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }

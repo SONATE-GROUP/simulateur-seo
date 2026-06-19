@@ -9,7 +9,7 @@ import crypto from 'crypto';
 export const runtime = 'nodejs';
 function uid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
 
-/* GET /api/invitations/[token] — validate token (public) */
+/* GET /api/invitations/[token] - validate token (public) */
 export async function GET(_req: NextRequest, { params }: { params: { token: string } }) {
   await initDb();
   const { token } = params;
@@ -39,7 +39,7 @@ export async function GET(_req: NextRequest, { params }: { params: { token: stri
   });
 }
 
-/* POST /api/invitations/[token] — accept invitation (set password, create account) */
+/* POST /api/invitations/[token] - accept invitation (set password, create account) */
 export async function POST(req: NextRequest, { params }: { params: { token: string } }) {
   await initDb();
   const { token } = params;
@@ -98,7 +98,7 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
   return NextResponse.json({ ok: true, email });
 }
 
-/* PATCH /api/invitations/[token] — resend invitation (global admin only) */
+/* PATCH /api/invitations/[token] - resend invitation (global admin only) */
 export async function PATCH(req: NextRequest, { params }: { params: { token: string } }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.isGlobalAdmin) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });

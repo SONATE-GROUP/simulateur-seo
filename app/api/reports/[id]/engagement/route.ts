@@ -5,7 +5,7 @@ import { db, initDb } from '@/lib/turso';
 
 export const runtime = 'nodejs';
 
-/* POST /api/reports/[id]/engagement — accumulate time spent / interaction count for a report.
+/* POST /api/reports/[id]/engagement - accumulate time spent / interaction count for a report.
    Fire-and-forget from the client (periodic heartbeat + flush on unload), never blocks the UI. */
 export async function POST(
   req: NextRequest,

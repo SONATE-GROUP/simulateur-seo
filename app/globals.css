@@ -69,7 +69,7 @@ input[type="range"]::-moz-range-thumb {
   border: 2px solid #1a2e25;
 }
 
-/* Number inputs — hide arrows */
+/* Number inputs - hide arrows */
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;

@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 
 export const runtime = 'nodejs';
 
-/* GET /api/auth/reset/[token] — validate token (public) */
+/* GET /api/auth/reset/[token] - validate token (public) */
 export async function GET(_req: NextRequest, { params }: { params: { token: string } }) {
   await initDb();
   const res = await db.execute({
@@ -22,7 +22,7 @@ export async function GET(_req: NextRequest, { params }: { params: { token: stri
   return NextResponse.json({ ok: true });
 }
 
-/* POST /api/auth/reset/[token] — set new password (public) */
+/* POST /api/auth/reset/[token] - set new password (public) */
 export async function POST(req: NextRequest, { params }: { params: { token: string } }) {
   await initDb();
   const { password } = await req.json();
