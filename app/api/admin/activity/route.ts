@@ -5,7 +5,7 @@ import { db, initDb } from '@/lib/turso';
 
 export const runtime = 'nodejs';
 
-/* GET /api/admin/activity — recent logins + report views (global admin only) */
+/* GET /api/admin/activity - recent logins + report views (global admin only) */
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.isGlobalAdmin) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });

@@ -6,7 +6,7 @@ import { db, initDb } from '@/lib/turso';
 export const runtime = 'nodejs';
 function uid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
 
-/* GET /api/workspaces — list workspaces for current user (all for global admin) */
+/* GET /api/workspaces - list workspaces for current user (all for global admin) */
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
@@ -32,7 +32,7 @@ export async function GET() {
   })));
 }
 
-/* POST /api/workspaces — create a workspace (global admins only) */
+/* POST /api/workspaces - create a workspace (global admins only) */
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });

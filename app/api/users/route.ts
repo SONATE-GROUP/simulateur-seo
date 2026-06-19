@@ -7,7 +7,7 @@ import { db, initDb } from '@/lib/turso';
 export const runtime = 'nodejs';
 function uid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
 
-/* GET /api/users — list all users (global admin only) */
+/* GET /api/users - list all users (global admin only) */
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
@@ -33,7 +33,7 @@ export async function GET() {
   })));
 }
 
-/* POST /api/users — create user (global admin only) */
+/* POST /api/users - create user (global admin only) */
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ id, email: email.toLowerCase().trim(), name: name || '', isGlobalAdmin, createdAt: now });
 }
 
-/* PATCH /api/users — toggle global admin (global admin only) */
+/* PATCH /api/users - toggle global admin (global admin only) */
 export async function PATCH(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
@@ -76,7 +76,7 @@ export async function PATCH(req: NextRequest) {
   return NextResponse.json({ ok: true });
 }
 
-/* DELETE /api/users — delete user (global admin only) */
+/* DELETE /api/users - delete user (global admin only) */
 export async function DELETE(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });

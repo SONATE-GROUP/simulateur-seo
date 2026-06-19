@@ -34,7 +34,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   return NextResponse.json(res.rows.map(r => ({ id: r[0], email: r[1], name: r[2], role: r[3] })));
 }
 
-/* POST /api/workspaces/[id]/members — add member */
+/* POST /api/workspaces/[id]/members - add member */
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   return NextResponse.json({ ok: true });
 }
 
-/* PATCH /api/workspaces/[id]/members — change role */
+/* PATCH /api/workspaces/[id]/members - change role */
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
@@ -85,7 +85,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   return NextResponse.json({ ok: true });
 }
 
-/* DELETE /api/workspaces/[id]/members — remove member */
+/* DELETE /api/workspaces/[id]/members - remove member */
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });

@@ -58,7 +58,7 @@ interface SimState {
   budgetCatsHidden: boolean;
   chalandisePercent: number;
   breakEvenMode: 'mensuel' | 'cumule';
-  // Paramétrage avancé — pondération de chaque levier de positionnement, en %
+  // Paramétrage avancé - pondération de chaque levier de positionnement, en %
   // (100 = calibrage par défaut). Voir computePosRaw.
   weightBudget: number;     // impact du budget pour entrer dans le top 10
   weightDA: number;         // force de la présence organique existante (DA)
@@ -113,17 +113,17 @@ const PROX_FACTOR: Record<number, number> = { 1: 1.0, 2: 1.5, 3: 3.0 };
 // Budget → position model (continuous position, 1 = best, 11 = off the top 10).
 //
 // Three phases:
-//   0. EXISTING PRESENCE — even with zero paid budget, an authoritative site
+//   0. EXISTING PRESENCE - even with zero paid budget, an authoritative site
 //      (high DA) already ranks on themes it covers, ESPECIALLY exact-match
 //      keywords. It does not start from zero. This pre-existing presence is
 //      modelled as a "virtual budget" (driven by DA / difficulty and proximity)
 //      that stacks with the paid budget on the same position scale.
-//   1. ENTERING the top 10 — governed by the budget weighting (unchanged): the
+//   1. ENTERING the top 10 - governed by the budget weighting (unchanged): the
 //      reference keyword (difficulty == site DA, proximity "exact", one funded
 //      keyword, neutral health 60) reaches position 10 at BUDGET_TOP10 of
 //      weighted budget. Difficulty/DA, proximity, health and cluster synergy
 //      only scale HOW MUCH budget is required to get there.
-//   2. CLIMBING from 10 to 1 — exponential difficulty: each position gained
+//   2. CLIMBING from 10 to 1 - exponential difficulty: each position gained
 //      toward #1 costs POS_CLIMB_BASE× more budget than the previous one.
 //         budget(pos) = top10 · POS_CLIMB_BASE^(10 − pos)
 //      ⇒  pos = 10 − log_base(budget / top10)
@@ -153,7 +153,7 @@ const BUDGET_DELAY_MONTHS = 1;
 
 // Existing organic presence simulated by the site authority (DA), with NO paid
 // budget. The higher the DA relative to the keyword difficulty, the better the
-// site is already positioned — so it does not start from zero. Proximity gates
+// site is already positioned - so it does not start from zero. Proximity gates
 // this: an EXACT-match theme benefits fully, a thematic keyword barely at all.
 //   • Reference: when DA == difficulty on an exact match → position 10 for free.
 //   • Each doubling of DA / difficulty adds PRESENCE_STRENGTH positions (exact).
@@ -170,12 +170,12 @@ const MAX_EXISTING_PRESENCE = 9; // cap: the best a site can rank for free is po
 //   • each ÷2 of DA / difficulty → +FLOOR_STRENGTH positions of floor
 const FLOOR_STRENGTH = 3.0;
 
-// Advanced tuning — multipliers on each positioning lever (1 = default
+// Advanced tuning - multipliers on each positioning lever (1 = default
 // calibration). Exposed to the UI through the "Paramétrage avancé" sliders so
 // the weight of budget, DA, thematic proximity and keyword count can be tuned.
 interface PosWeights {
-  budget: number;     // ×BUDGET_IMPACT — how much paid budget moves the ranking
-  da: number;         // ×PRESENCE_STRENGTH — strength of the existing DA presence
+  budget: number;     // ×BUDGET_IMPACT - how much paid budget moves the ranking
+  da: number;         // ×PRESENCE_STRENGTH - strength of the existing DA presence
   proximity: number;  // intensity of the exact-vs-thematic differentiation
   keywords: number;   // strength of the topical-authority synergy (other keywords)
 }
@@ -207,7 +207,7 @@ function computePosRaw(
   const healthFactor  = coeffSante / Math.max(0.01, computeHealthCoeff(REF_HEALTH_SCORE));
 
   // Topical-authority synergy lifts the rank DIRECTLY (in positions), so it helps
-  // even with zero paid budget — the other well-placed keywords pull this one up.
+  // even with zero paid budget - the other well-placed keywords pull this one up.
   // clusterSynergy is the precomputed budget-discount-style factor (≥1) from the
   // other keywords' average position and count (see clusterSynergyFactor); its
   // log converts it into a rank bonus.
@@ -226,7 +226,7 @@ function computePosRaw(
   const daPresenceBase = PRESENCE_STRENGTH * weights.da
     * (Math.log(da / Math.max(1, difficulty)) / Math.LN2);
   // Proximity only attenuates a POSITIVE presence (the free boost a strong DA
-  // gives to on-topic keywords — exact themes benefit most). It must NOT soften
+  // gives to on-topic keywords - exact themes benefit most). It must NOT soften
   // the penalty of a hard keyword (da < difficulty): otherwise a thematic
   // keyword (weight 0.15) would end up LESS penalised than the exact one
   // (weight 1.0), wrongly prioritising distant themes when the DA is low.
@@ -276,7 +276,7 @@ function daGrowthAllowed(da: number, monthlyTraffic: number): boolean {
   return true;
 }
 
-const DEFAULT_CATEGORY_BUDGET = 1600; // € — budget mensuel par défaut d'une catégorie
+const DEFAULT_CATEGORY_BUDGET = 1600; // € - budget mensuel par défaut d'une catégorie
 
 const DEFAULT_KEYWORDS: Keyword[] = [
   { id: '1', keyword: 'acheter graines tomates',   volume: 2400, difficulty: 35, proximity: 1, intention: 1, topic: 'Graines tomates', categoryId: 'cat1', zone: 'chalandise' },
@@ -342,14 +342,14 @@ const G4 = '#3a5c4e';
 const G5 = '#233d30';
 const CREAM  = '#f5f0e8';
 const ORANGE = '#e8571a';
-const SEO_CLR = '#4fc3d6'; // bright teal for the SEO series — readable on the dark card
+const SEO_CLR = '#4fc3d6'; // bright teal for the SEO series - readable on the dark card
 
 // Shared geometry for the 3 monthly charts so each month's bars line up
 // vertically across them: identical left inset (Y-axis width, sized for the
 // largest axis values) and identical right inset (reserves room for the CPA
 // chart's right-hand axis even on the charts that don't have one).
-const CHART_AXIS_W = 50;      // left Y-axis width — same on every chart
-const CHART_RIGHT_INSET = 46; // right inset — = the CPA chart's right axis width
+const CHART_AXIS_W = 50;      // left Y-axis width - same on every chart
+const CHART_RIGHT_INSET = 46; // right inset - = the CPA chart's right axis width
 
 // Shared colour code for a position badge, used by every "Position" column
 // (M+3, M+6, M+9, M+12) and the monthly progression so a given rank always
@@ -617,7 +617,7 @@ export default function SimulateurSEO() {
   const resultsRef  = useRef<HTMLDivElement>(null);
   const xlsxInputRef = useRef<HTMLInputElement>(null);
 
-  /* Unsaved-changes tracking — skipDirtyRef ignores state changes caused by
+  /* Unsaved-changes tracking - skipDirtyRef ignores state changes caused by
      the initial load (URL/report fetch) so only real user edits count. */
   const [isDirty, setIsDirty] = useState(false);
   const skipDirtyRef = useRef(true);
@@ -681,7 +681,7 @@ export default function SimulateurSEO() {
     }
   }, []);
 
-  /* Load workspaces — redirect readers to /rapports */
+  /* Load workspaces - redirect readers to /rapports */
   useEffect(() => {
     if (!session) return;
     fetch('/api/workspaces')
@@ -703,7 +703,7 @@ export default function SimulateurSEO() {
   useEffect(() => { reportIdRef.current = reportId; }, [reportId]);
 
   /* Track time spent + interactions for the whole session (periodic heartbeat + flush on
-     leave), as soon as the user is logged in — whether or not a report is open/saved.
+     leave), as soon as the user is logged in - whether or not a report is open/saved.
      When a report is open, the same numbers are also added to that report's totals. */
   useEffect(() => {
     if (!session?.user?.id) return;
@@ -752,7 +752,7 @@ export default function SimulateurSEO() {
   /* Budget allocation per keyword over 12 months (sudoku-style) */
   const kwAllocations = useMemo(() => {
     const CHUNK = 100; // € per allocation step
-    const MAX_CTR_PROPOSAL = 5000; // € — max extra monthly budget tested for next CTR step
+    const MAX_CTR_PROPOSAL = 5000; // € - max extra monthly budget tested for next CTR step
     const coeffSante = Math.max(0.01, computeHealthCoeff(healthScore));
 
     // Per-category: budget (scaled by budgetRatio), keyword count, coeff
@@ -786,7 +786,7 @@ export default function SimulateurSEO() {
       if (rawPos <= 1) return 0; // already at best position
       // Use continuous (non-rounded) positions for the gain so that a single
       // CHUNK of budget still registers a (small) improvement even when it
-      // isn't enough to cross an integer rank boundary — otherwise the
+      // isn't enough to cross an integer rank boundary - otherwise the
       // allocation loop sees gain=0 for every keyword and stops allocating
       // budget entirely.
       const rawPosAfter = getPosRaw(kw, cumBudget + budgetDelta);
@@ -909,7 +909,7 @@ export default function SimulateurSEO() {
     return result;
   }, [keywords, categories, da, healthScore, budgetRatio, crTransactionnel, crPreAchat, crIntermediaire, crInformationnel, chalandisePercent, posWeights]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* DA progression engine — the DA grows month by month with the invested
+  /* DA progression engine - the DA grows month by month with the invested
      budget. Because the DA drives the positions, and the positions drive the
      traffic that gates the top growth tiers, the months are computed
      sequentially: each month's positions use the current DA, the resulting
@@ -939,12 +939,12 @@ export default function SimulateurSEO() {
     for (let i = 0; i < 12; i++) {
       daPerMonth[i] = curDa;
 
-      // Pass A — intrinsic (synergy-neutral) positions this month at the current DA.
+      // Pass A - intrinsic (synergy-neutral) positions this month at the current DA.
       const basePos = keywords.map((kw, k) =>
         clampCont(computePosRaw(lagCumOf(k, i), kw.difficulty, curDa, kw.proximity, 1, coeffSante, posWeights)));
       const sum = basePos.reduce((s, p) => s + p, 0);
 
-      // Pass B — final positions (with topical-authority synergy) + month traffic.
+      // Pass B - final positions (with topical-authority synergy) + month traffic.
       const calMonth = (startMonth + i) % 12;
       const seasonal = seasonalityEnabled && highSeasonMonths[calMonth] ? highSeasonMultiplier : 1;
       let traffic = 0;
@@ -976,7 +976,7 @@ export default function SimulateurSEO() {
     return { daStart, daFinal: curDa, daPerMonth, monthlyPosById };
   }, [kwAllocations, keywords, categories, da, healthScore, budgetRatio, chalandisePercent, kwMultiplier, seasonalityEnabled, startMonth, highSeasonMonths, highSeasonMultiplier, posWeights]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* Per-keyword results — FULL view (existing organic presence + paid budget),
+  /* Per-keyword results - FULL view (existing organic presence + paid budget),
      reading the DA-aware monthly positions from the progression engine. */
   const fullKwResults = useMemo(() => {
     const leadConv = businessType === 'lead' ? (tauxRdv / 100) * (tauxClosing / 100) : 1;
@@ -1007,7 +1007,7 @@ export default function SimulateurSEO() {
     });
   }, [daEngine, kwAllocations, keywords, basketValue, crTransactionnel, crPreAchat, crIntermediaire, crInformationnel, budgetRatio, businessType, tauxRdv, tauxClosing, chalandisePercent]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* Per-keyword results — BASELINE view (no paid budget at all): each keyword
+  /* Per-keyword results - BASELINE view (no paid budget at all): each keyword
      keeps only the DA-driven organic position it already holds, with no budget
      allocated. Position is constant across the 12 months. */
   const baselineKwResults = useMemo(() => {
@@ -1016,7 +1016,7 @@ export default function SimulateurSEO() {
     const nbKeywords = keywords.length;
     const clampCont = (raw: number) => Math.min(11, Math.max(1, raw));
 
-    // Pass A — intrinsic DA-only positions (no budget, no synergy), then Pass B
+    // Pass A - intrinsic DA-only positions (no budget, no synergy), then Pass B
     // applies the topical-authority synergy from the other keywords' positions:
     // a high-DA site with many well-placed keywords lifts the rest organically.
     const basePos = keywords.map(kw =>
@@ -1047,7 +1047,7 @@ export default function SimulateurSEO() {
     });
   }, [keywords, categories, da, healthScore, basketValue, crTransactionnel, crPreAchat, crIntermediaire, crInformationnel, budgetRatio, businessType, tauxRdv, tauxClosing, chalandisePercent, posWeights]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* Per-keyword results — DIFFERENTIAL view: the incremental contribution of the
+  /* Per-keyword results - DIFFERENTIAL view: the incremental contribution of the
      paid budget = full − baseline. traffic / leads / CA keep only what the budget
      adds on top of the pre-existing organic presence. The position shown is the
      rank EQUIVALENT to that incremental traffic (inverse CTR of the CTR gain), so
@@ -1070,7 +1070,7 @@ export default function SimulateurSEO() {
         monthlyPos,
         // CTR is also incremental so that "volume × CTR = trafic" stays true in
         // this view (otherwise the full CTR shown next to an incremental traffic
-        // looks impossible — e.g. CTR 29.6% but trafic 262 instead of 296).
+        // looks impossible - e.g. CTR 29.6% but trafic 262 instead of 296).
         ctr:     Math.max(0, kw.ctr     - (base?.ctr     ?? 0)),
         traffic: Math.max(0, kw.traffic - (base?.traffic ?? 0)),
         leads:   Math.max(0, kw.leads   - (base?.leads   ?? 0)),
@@ -1253,7 +1253,7 @@ export default function SimulateurSEO() {
   const fullSeoGeoData = useMemo(() => buildSeoGeo(fullMonthly.monthlyData), [fullMonthly]); // eslint-disable-line react-hooks/exhaustive-deps
   const differentialSeoGeoData = useMemo(() => buildSeoGeo(differentialMonthly.monthlyData), [differentialMonthly]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* Display selection — the JSX below always reads these names; they resolve to
+  /* Display selection - the JSX below always reads these names; they resolve to
      the full or the differential figures depending on the chosen display mode. */
   const isDifferential = displayMode === 'differentiel';
   const kwResults = isDifferential ? differentialKwResults : fullKwResults;
@@ -1733,7 +1733,7 @@ export default function SimulateurSEO() {
         padding: '0 24px', height: 80, flexShrink: 0,
         display: 'flex', alignItems: 'center', gap: 20, zIndex: 100,
       }}>
-        {/* Logo — background-image crop: original 1762×990, Sonate text at y≈8–50% */}
+        {/* Logo - background-image crop: original 1762×990, Sonate text at y≈8–50% */}
         <div style={{ position: 'relative', width: 252, height: 65, flexShrink: 0 }}>
           <div style={{
             backgroundImage: 'url(/logo-sonate.png)',
@@ -2328,7 +2328,7 @@ export default function SimulateurSEO() {
             />
           </div>
 
-          {/* PARAMÉTRAGE AVANCÉ — pondération des leviers de positionnement */}
+          {/* PARAMÉTRAGE AVANCÉ - pondération des leviers de positionnement */}
           <div style={cardLight}>
             <div style={{ ...secTitleLight, justifyContent: 'space-between' }}>
               <span>
@@ -2380,7 +2380,7 @@ export default function SimulateurSEO() {
         {/* ── RIGHT PANEL ── */}
         <div ref={resultsRef} style={{ flex: 1, overflowY: 'auto', padding: '14px 18px 24px' }}>
 
-          {/* RAPPORT HEADER — apparaît dans le PDF */}
+          {/* RAPPORT HEADER - apparaît dans le PDF */}
           <div style={{
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             backgroundColor: G2, borderRadius: 10, padding: '14px 20px',
@@ -2404,7 +2404,7 @@ export default function SimulateurSEO() {
             </div>
           </div>
 
-          {/* AFFICHAGE — bascule Complet / Différentiel */}
+          {/* AFFICHAGE - bascule Complet / Différentiel */}
           <div style={{
             display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14,
             backgroundColor: G2, borderRadius: 10, padding: '8px 12px', border: `1px solid ${G3}`,
@@ -2443,7 +2443,7 @@ export default function SimulateurSEO() {
             </div>
           )}
 
-          {/* BLOC 1 — MAIN KPIs */}
+          {/* BLOC 1 - MAIN KPIs */}
           <div style={{ display: 'flex', gap: 14, marginBottom: 14 }}>
             <div style={{
               flex: 1, backgroundColor: G5, borderRadius: 12, padding: '24px 22px',
@@ -2492,7 +2492,7 @@ export default function SimulateurSEO() {
             </div>
           </div>
 
-          {/* BLOC 2 — SECONDARY KPIs */}
+          {/* BLOC 2 - SECONDARY KPIs */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 14 }}>
             <KPICard label="Trafic organique / mois" value={fmtN(totals.totalTraffic)} />
             <KPICard label={businessType === 'ecommerce' ? 'CPA' : 'Leads / mois (à 12 mois)'} value={businessType === 'ecommerce' && totals.budgetMensuel > 0 && totals.totalLeads > 0 ? fmtC(Math.round(totals.budgetMensuel / totals.totalLeads)) : fmtLeads(totals.totalLeads)} />
@@ -2500,7 +2500,7 @@ export default function SimulateurSEO() {
             <KPICard label="Budget mensuel" value={fmtC(totals.budgetMensuel)} accent />
           </div>
 
-          {/* BLOC 3 — FUNNEL */}
+          {/* BLOC 3 - FUNNEL */}
           <div style={card}>
             <div style={{ ...secTitle, marginBottom: 6 }}>
               <span style={{ color: ORANGE, fontSize: 10 }}>◆</span> Entonnoir de conversion
@@ -2583,7 +2583,7 @@ export default function SimulateurSEO() {
             </div>
           </div>
 
-          {/* BLOC 4 — MONTHLY PROJECTION */}
+          {/* BLOC 4 - MONTHLY PROJECTION */}
           <div style={card}>
             <div style={{ ...secTitle, marginBottom: 16 }}>
               <span style={{ color: ORANGE, fontSize: 10 }}>◆</span> Projection mensuelle : 12 mois
@@ -2660,7 +2660,7 @@ export default function SimulateurSEO() {
             </div>
           </div>
 
-          {/* BLOC 4b — LEADS PAR MOIS */}
+          {/* BLOC 4b - LEADS PAR MOIS */}
           <div style={card}>
             <div style={{ ...secTitle, marginBottom: 10 }}>
               <span style={{ color: ORANGE, fontSize: 10 }}>◆</span> Évolution du CPA (coût d'acquisition) : 12 mois
@@ -2698,13 +2698,13 @@ export default function SimulateurSEO() {
             </div>
           </div>
 
-          {/* BLOC 4c — CLICS SEO vs GEO */}
+          {/* BLOC 4c - CLICS SEO vs GEO */}
           <div style={card}>
             <div style={{ ...secTitle, marginBottom: 4 }}>
               <span style={{ color: ORANGE, fontSize: 10 }}>◆</span> Volume de clics estimé par mois : SEO → GEO
             </div>
             <div style={{ color: '#5a7a6a', fontSize: 11, marginBottom: 12 }}>
-              Chaque barre représente le volume de clics estimé du mois (croissance de +2 %/mois), réparti entre référencement classique (SEO) et moteurs de réponse génératifs (GEO : ChatGPT, Perplexity, AI Overviews…). La part GEO progresse de +4 pts par mois : 0 % au 1er mois, 44 % au 12e — illustration du glissement des recherches vers l&apos;IA générative.
+              Chaque barre représente le volume de clics estimé du mois (croissance de +2 %/mois), réparti entre référencement classique (SEO) et moteurs de réponse génératifs (GEO : ChatGPT, Perplexity, AI Overviews…). La part GEO progresse de +4 pts par mois : 0 % au 1er mois, 44 % au 12e, illustrant le glissement des recherches vers l&apos;IA générative.
             </div>
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={seoGeoData} margin={{ top: 8, right: CHART_RIGHT_INSET, left: 0, bottom: 4 }}>
@@ -2728,12 +2728,12 @@ export default function SimulateurSEO() {
               </BarChart>
             </ResponsiveContainer>
             <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 10, color: '#5a7a6a' }}>
-              <span><span style={{ display: 'inline-block', width: 10, height: 10, backgroundColor: SEO_CLR, borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} />SEO — référencement classique</span>
-              <span><span style={{ display: 'inline-block', width: 10, height: 10, backgroundColor: ORANGE, borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} />GEO — moteurs génératifs (0 % → 44 % des clics)</span>
+              <span><span style={{ display: 'inline-block', width: 10, height: 10, backgroundColor: SEO_CLR, borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} />SEO : référencement classique</span>
+              <span><span style={{ display: 'inline-block', width: 10, height: 10, backgroundColor: ORANGE, borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} />GEO : moteurs génératifs (0 % → 44 % des clics)</span>
             </div>
           </div>
 
-          {/* BLOC 6 — KEYWORD DETAIL */}
+          {/* BLOC 6 - KEYWORD DETAIL */}
           <div style={card}>
             <div style={secTitle}>
               <span style={{ color: ORANGE, fontSize: 10 }}>◆</span> Détail par mot clé
@@ -2959,7 +2959,7 @@ export default function SimulateurSEO() {
             )}
           </div>
 
-          {/* BLOC 7 — PARAMÈTRES (résumé pour le PDF) */}
+          {/* BLOC 7 - PARAMÈTRES (résumé pour le PDF) */}
           <div style={{ ...card, marginTop: 6 }}>
             <div style={secTitle}>
               <span style={{ color: ORANGE, fontSize: 10 }}>◆</span> Paramètres de simulation
@@ -3081,7 +3081,7 @@ export default function SimulateurSEO() {
             </div>
           </div>
 
-          {/* DISCLAIMER — shown on the web version and captured in the PDF export */}
+          {/* DISCLAIMER - shown on the web version and captured in the PDF export */}
           <div style={{
             marginTop: 16, padding: '12px 16px', backgroundColor: G2,
             border: `1px solid ${G3}`, borderRadius: 8,

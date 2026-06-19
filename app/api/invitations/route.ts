@@ -8,7 +8,7 @@ import crypto from 'crypto';
 export const runtime = 'nodejs';
 function uid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
 
-/* GET /api/invitations — list all invitations (global admin only) */
+/* GET /api/invitations - list all invitations (global admin only) */
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.isGlobalAdmin) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
@@ -47,7 +47,7 @@ export async function GET() {
   }));
 }
 
-/* POST /api/invitations — create & send invitation (global admin only) */
+/* POST /api/invitations - create & send invitation (global admin only) */
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.isGlobalAdmin) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ id, token, email: normalizedEmail, expiresAt, createdAt: now, status: 'pending', inviteUrl });
 }
 
-/* DELETE /api/invitations — delete an invitation by id (global admin only) */
+/* DELETE /api/invitations - delete an invitation by id (global admin only) */
 export async function DELETE(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.isGlobalAdmin) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });

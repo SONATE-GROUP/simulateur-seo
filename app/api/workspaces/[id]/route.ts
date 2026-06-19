@@ -20,7 +20,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   return NextResponse.json({ id: r[0], name: r[1], ownerId: r[2], createdAt: r[3] });
 }
 
-/* PATCH /api/workspaces/[id] — rename (owner or global admin) */
+/* PATCH /api/workspaces/[id] - rename (owner or global admin) */
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
@@ -42,7 +42,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   return NextResponse.json({ ok: true });
 }
 
-/* DELETE /api/workspaces/[id] — delete workspace (global admin only) */
+/* DELETE /api/workspaces/[id] - delete workspace (global admin only) */
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });

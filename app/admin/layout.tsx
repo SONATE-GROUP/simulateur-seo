@@ -81,7 +81,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           })}
         </nav>
 
-        {/* Bottom — back to simulator */}
+        {/* Bottom - back to simulator */}
         <div style={{ padding: '12px 10px 20px', borderTop: `1px solid ${G3}` }}>
           <Link href="/" style={{
             display: 'flex', alignItems: 'center', gap: 8,
