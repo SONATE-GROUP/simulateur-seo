@@ -16,7 +16,9 @@ interface Category {
   id: string;
   name: string;
   budget: number; // monthly budget for this category (€/month)
-  coeff?: 1 | 2 | 5 | 10 | 20;
+  // Longue traîne : coefficient multiplicateur (1.0 = aucun mot-clé secondaire,
+  // jusqu'à 5.0). Le slider l'exprime en % (0 % → ×1, +400 % → ×5).
+  coeff?: number;
 }
 
 type Zone = 'chalandise' | 'france';
@@ -661,7 +663,13 @@ export default function SimulateurSEO() {
     const report = params.get('report');
     const migrate = (s: SimState): SimState => ({
       ...s,
-      categories: (s.categories ?? []).map(c => ({ ...c, budget: c.budget ?? DEFAULT_CATEGORY_BUDGET })),
+      categories: (s.categories ?? []).map(c => ({
+        ...c,
+        budget: c.budget ?? DEFAULT_CATEGORY_BUDGET,
+        // L'échelle du coeff (longue traîne) est désormais 1 → 5 ; on borne les
+        // anciennes valeurs (×10, ×20) dans cette plage.
+        coeff: c.coeff != null ? Math.min(5, Math.max(1, c.coeff)) : c.coeff,
+      })),
       keywords: (s.keywords ?? []).map(k => ({ ...k, zone: k.zone ?? 'chalandise' })),
       chalandisePercent: s.chalandisePercent ?? 100,
       breakEvenMode: s.breakEvenMode ?? 'mensuel',
@@ -1438,7 +1446,7 @@ export default function SimulateurSEO() {
   const updateCategoryBudget = (catId: string, budget: number) =>
     setState(s => ({ ...s, categories: s.categories.map(c => c.id === catId ? { ...c, budget } : c) }));
 
-  const updateCategoryCoeff = (catId: string, coeff: 1 | 2 | 5 | 10 | 20) =>
+  const updateCategoryCoeff = (catId: string, coeff: number) =>
     setState(s => ({ ...s, categories: s.categories.map(c => c.id === catId ? { ...c, coeff } : c) }));
 
   const removeCategory = (catId: string) => {
@@ -1950,15 +1958,24 @@ export default function SimulateurSEO() {
                         />
                         <span style={{ fontSize: 10, color: L_MED }}>mots-clés</span>
                       </div>
-                      <select
-                        value={cat.coeff ?? 1}
+                      <div
                         onClick={e => e.stopPropagation()}
-                        onChange={e => updateCategoryCoeff(cat.id, Number(e.target.value) as 1 | 2 | 5 | 10 | 20)}
-                        style={{ fontSize: 10, border: `1px solid ${L_BORD}`, borderRadius: 3, padding: '2px 4px', background: L_INPUT, color: (cat.coeff ?? 1) > 1 ? ORANGE : L_DARK, fontWeight: (cat.coeff ?? 1) > 1 ? 700 : 400, cursor: 'pointer', outline: 'none' }}
-                        title="Coefficient multiplicateur de sortie"
+                        title="Longue traîne : densité de mots-clés secondaires couverts par l'optimisation du mot-clé principal (0 % = aucun, +100 % = ×2, +400 % = ×5)"
+                        style={{ display: 'flex', alignItems: 'center', gap: 6 }}
                       >
-                        {[1, 2, 5, 10, 20].map(v => <option key={v} value={v}>×{v}</option>)}
-                      </select>
+                        <span style={{ fontSize: 10, color: L_MED, whiteSpace: 'nowrap' }}>Longue traîne</span>
+                        <input
+                          type="range" min={0} max={400} step={10}
+                          value={Math.round(((cat.coeff ?? 1) - 1) * 100)}
+                          onClick={e => e.stopPropagation()}
+                          onChange={e => updateCategoryCoeff(cat.id, 1 + Number(e.target.value) / 100)}
+                          className="slider-light"
+                          style={{ width: 84 }}
+                        />
+                        <span style={{ fontSize: 10, fontWeight: (cat.coeff ?? 1) > 1 ? 700 : 400, color: (cat.coeff ?? 1) > 1 ? ORANGE : L_DARK, whiteSpace: 'nowrap', minWidth: 70 }}>
+                          +{Math.round(((cat.coeff ?? 1) - 1) * 100)}% <span style={{ color: L_MED, fontWeight: 400 }}>(×{(cat.coeff ?? 1).toFixed(1)})</span>
+                        </span>
+                      </div>
                       <button
                         onClick={e => { e.stopPropagation(); addKw(cat.id); }}
                         style={{ background: ORANGE, border: 'none', borderRadius: 3, padding: '2px 7px', color: 'white', fontSize: 10, cursor: 'pointer', fontWeight: 700, whiteSpace: 'nowrap' }}
