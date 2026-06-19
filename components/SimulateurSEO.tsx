@@ -161,6 +161,15 @@ const PRESENCE_STRENGTH = 3.0;   // free positions gained per ×2 of DA / diffic
 const PRESENCE_PROX_WEIGHT: Record<number, number> = { 1: 1.0, 2: 0.45, 3: 0.15 };
 const MAX_EXISTING_PRESENCE = 9; // cap: the best a site can rank for free is position 1
 
+// Budget-independent ceiling: the BEST rank a keyword can reach is gated by the
+// site authority. A DA below the keyword difficulty cannot reach the very top
+// no matter how much budget is spent; a strong DA unlocks #1. This makes the DA
+// a marked, budget-independent driver of the POSITION (not just of the traffic),
+// and prevents budget alone from pinning every keyword at #1 regardless of DA.
+//   • DA ≥ difficulty            → floor 1 (the #1 spot is reachable)
+//   • each ÷2 of DA / difficulty → +FLOOR_STRENGTH positions of floor
+const FLOOR_STRENGTH = 3.0;
+
 // Advanced tuning — multipliers on each positioning lever (1 = default
 // calibration). Exposed to the UI through the "Paramétrage avancé" sliders so
 // the weight of budget, DA, thematic proximity and keyword count can be tuned.
@@ -228,9 +237,15 @@ function computePosRaw(
   const effectiveBudget = cumBudget + virtualBudget;
   if (effectiveBudget <= 0) return 100;
 
-  // Position #1 is the best achievable: never return below 1 (more budget than
-  // needed for #1 cannot push the rank lower than the first spot).
-  return Math.max(1, 10 - Math.log(effectiveBudget / top10) / Math.log(POS_CLIMB_BASE));
+  // Best rank achievable given the DA (budget-independent). When the DA is below
+  // the keyword difficulty, even unlimited budget cannot reach the very top.
+  const daFloor = 1 + FLOOR_STRENGTH * weights.da
+    * Math.max(0, Math.log(difficulty / Math.max(1, da)) / Math.LN2);
+
+  // Budget improves the rank from the organic baseline down to the DA floor, but
+  // never below it (#1 is the absolute best). Both bounds are ≥ 1.
+  const budgetDrivenPos = 10 - Math.log(effectiveBudget / top10) / Math.log(POS_CLIMB_BASE);
+  return Math.max(daFloor, budgetDrivenPos);
 }
 
 // Piecewise-linear coefficient from the Semrush Health Score:
