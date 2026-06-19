@@ -263,7 +263,7 @@ function computeHealthCoeff(score: number): number {
 // budget) to gain one DA point rises by tier; the two top tiers also require a
 // minimum monthly organic traffic ("clics") to convert budget into authority.
 function daCostPerPoint(da: number): number {
-  if (da <= 20) return 1000;   // 0 → 20
+  if (da <= 20) return 500;    // 0 → 20
   if (da <= 30) return 2500;   // 21 → 30
   if (da <= 40) return 4000;   // 31 → 40
   if (da <= 50) return 5500;   // 41 → 50
@@ -1061,6 +1061,10 @@ export default function SimulateurSEO() {
         ...kw,
         pos: diffPos(kw.pos, base?.pos ?? 11),
         monthlyPos,
+        // CTR is also incremental so that "volume × CTR = trafic" stays true in
+        // this view (otherwise the full CTR shown next to an incremental traffic
+        // looks impossible — e.g. CTR 29.6% but trafic 262 instead of 296).
+        ctr:     Math.max(0, kw.ctr     - (base?.ctr     ?? 0)),
         traffic: Math.max(0, kw.traffic - (base?.traffic ?? 0)),
         leads:   Math.max(0, kw.leads   - (base?.leads   ?? 0)),
         ca:      Math.max(0, kw.ca      - (base?.ca      ?? 0)),
