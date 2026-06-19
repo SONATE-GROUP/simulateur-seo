@@ -1195,11 +1195,19 @@ export default function SimulateurSEO() {
     const budgetMensuel = categories.reduce((s, c) => s + (c.budget ?? DEFAULT_CATEGORY_BUDGET), 0) * (budgetRatio / 100);
     const budgetTotal   = budgetMensuel * 12;
 
-    const totalCA_2ans  = totalCA_annual + 12 * totalCA_m12;
+    // ROI à 1 an : CA cumulé des 12 mois simulés (montée en puissance) vs budget annuel.
     const roi1an     = budgetTotal > 0 ? ((totalCA_annual - budgetTotal) / budgetTotal) * 100 : 0;
     const roiMult1an = budgetTotal > 0 ? totalCA_annual / budgetTotal : 0;
-    const roi2ans    = budgetTotal > 0 ? ((totalCA_2ans  - budgetTotal) / budgetTotal) * 100 : 0;
-    const roiMult    = budgetTotal > 0 ? totalCA_2ans  / budgetTotal : 0;
+
+    // ROI à 2 ans : on projette l'an 2 (M13→M24) à partir du M12, considéré
+    // représentatif des 12 mois suivants → CA an 2 = 12 × CA mensuel du M12.
+    // Le budget de l'an 2 est nul (aucun réinvestissement). Le dénominateur
+    // reste donc le seul budget de l'an 1.
+    const caYear2      = 12 * totalCA_m12;             // M13→M24 au régime du M12
+    const totalCA_2ans = totalCA_annual + caYear2;     // an 1 (réel) + an 2 (projeté)
+    const budget2ans   = budgetTotal;                  // an 1 uniquement (an 2 = 0 €)
+    const roi2ans    = budget2ans > 0 ? ((totalCA_2ans - budget2ans) / budget2ans) * 100 : 0;
+    const roiMult    = budget2ans > 0 ? totalCA_2ans  / budget2ans : 0;
 
     const baseLeads   = rawLeads_m12;
     const baseRdv     = baseLeads * (tauxRdv / 100);
