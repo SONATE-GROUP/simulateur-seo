@@ -689,16 +689,19 @@ export default function SimulateurSEO() {
     }
   }, []);
 
-  /* Load workspaces - redirect readers to /rapports */
+  /* Load workspaces - redirect readers to /rapports (sauf s'ils consultent un rapport) */
   useEffect(() => {
     if (!session) return;
+    // Quand l'URL pointe sur un rapport précis (?report=...), un lecteur doit pouvoir
+    // le consulter en lecture seule : on ne le redirige donc pas dans ce cas.
+    const isViewingReport = new URLSearchParams(window.location.search).has('report');
     fetch('/api/workspaces')
       .then(r => r.json())
       .then(data => {
         if (!Array.isArray(data)) return;
         const editable = data.filter((w: { role: string }) => w.role === 'owner' || w.role === 'editor');
         const isReaderOnly = !session.user.isGlobalAdmin && editable.length === 0 && data.length > 0;
-        if (isReaderOnly) { window.location.href = '/rapports'; return; }
+        if (isReaderOnly && !isViewingReport) { window.location.href = '/rapports'; return; }
         setWorkspaces(editable);
         if (editable.length > 0 && !workspaceId) setWorkspaceId(editable[0].id);
       })
