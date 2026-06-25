@@ -21,7 +21,8 @@ export async function initDb() {
     'ALTER TABLE reports ADD COLUMN interaction_count INTEGER DEFAULT 0',
     'ALTER TABLE users ADD COLUMN total_time_seconds INTEGER DEFAULT 0',
     'ALTER TABLE users ADD COLUMN interaction_count INTEGER DEFAULT 0',
-  ];  for (const sql of migrations) {
+  ];
+  for (const sql of migrations) {
     try { await db.execute(sql); } catch { /* column already exists */ }
   }
 
@@ -94,6 +95,16 @@ export async function initDb() {
       expires_at TEXT NOT NULL,
       used_at    TEXT,
       created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS report_user_stats (
+      report_id    TEXT NOT NULL,
+      user_id      TEXT NOT NULL,
+      time_seconds INTEGER DEFAULT 0,
+      interactions INTEGER DEFAULT 0,
+      view_count   INTEGER DEFAULT 0,
+      last_viewed  TEXT,
+      PRIMARY KEY (report_id, user_id)
     );
 
     CREATE INDEX IF NOT EXISTS idx_report_views_report ON report_views(report_id);
