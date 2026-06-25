@@ -139,8 +139,8 @@ export default function RapportsPage() {
   }
 
   const cols = canMove
-    ? '1fr 1fr 140px 48px 90px 80px 130px 150px 80px 80px 80px'
-    : '1fr 1fr 140px 48px 90px 80px 130px 150px 100px 80px';
+    ? '2fr 1fr 140px 48px 90px 80px 130px 150px 80px 80px 80px'
+    : '2fr 1fr 140px 48px 90px 80px 130px 150px 100px 80px';
 
   return (
     <div style={{ maxWidth: 1080 }}>
@@ -203,7 +203,7 @@ export default function RapportsPage() {
 
           {visibleReports.map(r => (
             <div key={r.id} style={{ display: 'grid', gridTemplateColumns: cols, gap: 12, alignItems: 'center', backgroundColor: G5, borderRadius: 10, padding: '14px 16px' }}>
-              <span style={{ fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span title={r.prospect || ''} style={{ fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {r.prospect || <span style={{ color: '#5a7a6a', fontStyle: 'italic' }}>Sans nom</span>}
               </span>
               <span style={{ color: '#7a9e8e', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.siteUrl || '-'}</span>
