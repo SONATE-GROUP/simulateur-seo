@@ -27,6 +27,16 @@ interface Report {
   interactionCount: number;
 }
 
+interface Viewer {
+  userId: string;
+  name: string | null;
+  email: string | null;
+  timeSeconds: number;
+  interactions: number;
+  viewCount: number;
+  lastViewed: string | null;
+}
+
 function fmtDuration(totalSeconds: number) {
   if (totalSeconds <= 0) return '-';
   const h = Math.floor(totalSeconds / 3600);
@@ -49,6 +59,67 @@ function fmtDate(iso: string) {
   }).format(new Date(iso));
 }
 
+function ViewersAccordion({ reportId }: { reportId: string }) {
+  const [viewers, setViewers] = useState<Viewer[] | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/reports/${reportId}/viewers`)
+      .then(r => r.json())
+      .then(data => { setViewers(Array.isArray(data) ? data : []); setLoading(false); })
+      .catch(() => { setViewers([]); setLoading(false); });
+  }, [reportId]);
+
+  if (loading) {
+    return (
+      <div style={{ padding: '16px 20px', color: '#5a7a6a', fontSize: 13 }}>
+        Chargement…
+      </div>
+    );
+  }
+
+  if (!viewers || viewers.length === 0) {
+    return (
+      <div style={{ padding: '16px 20px', color: '#5a7a6a', fontSize: 13, fontStyle: 'italic' }}>
+        Aucune donnée de consultation enregistrée pour ce rapport.
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: '12px 20px 16px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 90px 80px 160px', gap: 10, padding: '6px 0', marginBottom: 4, color: '#5a7a6a', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', borderBottom: `1px solid ${G3}` }}>
+        <span>Utilisateur</span>
+        <span style={{ textAlign: 'center' }}>Vues</span>
+        <span>Temps passé</span>
+        <span style={{ textAlign: 'center' }}>Interactions</span>
+        <span>Dernière consultation</span>
+      </div>
+      {viewers.map(v => (
+        <div key={v.userId} style={{ display: 'grid', gridTemplateColumns: '1fr 60px 90px 80px 160px', gap: 10, padding: '8px 0', alignItems: 'center', borderBottom: `1px solid ${G4}20` }}>
+          <span style={{ fontSize: 12 }}>
+            <span style={{ color: CREAM, fontWeight: 600 }}>{v.name || ''}</span>
+            {v.name && v.email && <span style={{ color: '#5a7a6a', fontSize: 11 }}> · </span>}
+            <span style={{ color: '#5a7a6a', fontSize: 11 }}>{v.email || ''}</span>
+          </span>
+          <span style={{ fontSize: 12, fontWeight: 700, textAlign: 'center', color: v.viewCount > 0 ? '#4caf7d' : '#3a5c4e' }}>
+            {v.viewCount || '-'}
+          </span>
+          <span style={{ fontSize: 12, color: v.timeSeconds > 0 ? '#7a9e8e' : '#3a5c4e' }}>
+            {fmtDuration(v.timeSeconds)}
+          </span>
+          <span style={{ fontSize: 12, textAlign: 'center', color: v.interactions > 0 ? '#7a9e8e' : '#3a5c4e' }}>
+            {v.interactions > 0 ? v.interactions : '-'}
+          </span>
+          <span style={{ fontSize: 11, color: '#5a7a6a' }}>
+            {v.lastViewed ? fmtDate(v.lastViewed) : '-'}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function RapportsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -60,6 +131,8 @@ export default function RapportsPage() {
   const [targetWs, setTargetWs] = useState<string>('__none__');
   const [saving, setSaving]     = useState(false);
   const [moveError, setMoveError] = useState('');
+
+  const [openAccordion, setOpenAccordion] = useState<string | null>(null);
 
   const canMove = session?.user?.isGlobalAdmin || workspaces.some(w => w.role === 'owner');
 
@@ -101,7 +174,10 @@ export default function RapportsPage() {
   const deleteReport = async (id: string, prospect: string) => {
     if (!confirm(`Supprimer le rapport "${prospect || 'Sans nom'}" ?`)) return;
     const res = await fetch(`/api/reports/${id}`, { method: 'DELETE' });
-    if (res.ok) setReports(prev => prev.filter(r => r.id !== id));
+    if (res.ok) {
+      setReports(prev => prev.filter(r => r.id !== id));
+      if (openAccordion === id) setOpenAccordion(null);
+    }
   };
 
   const openMoveModal = (report: Report) => {
@@ -139,11 +215,11 @@ export default function RapportsPage() {
   }
 
   const cols = canMove
-    ? '2fr 1fr 140px 48px 90px 80px 130px 150px 80px 80px 80px'
-    : '2fr 1fr 140px 48px 90px 80px 130px 150px 100px 80px';
+    ? '20px 2fr 1fr 140px 48px 90px 80px 130px 150px 80px 80px 80px'
+    : '20px 2fr 1fr 140px 48px 90px 80px 130px 150px 100px 80px';
 
   return (
-    <div style={{ maxWidth: 1080 }}>
+    <div style={{ maxWidth: 1100 }}>
       {/* Header */}
       <div style={{ marginBottom: 28 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>Rapports enregistrés</h1>
@@ -189,6 +265,7 @@ export default function RapportsPage() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 12, padding: '8px 16px', color: '#5a7a6a', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            <span></span>
             <span>Prospect</span><span>Site</span><span>Espace client</span>
             <span title="Vues">Vues</span><span title="Temps passé total">Temps passé</span><span title="Nombre d'interactions (clics, saisies)">Interactions</span>
             <span>Dernière consult.</span><span>Création</span>
@@ -201,48 +278,72 @@ export default function RapportsPage() {
             </div>
           )}
 
-          {visibleReports.map(r => (
-            <div key={r.id} style={{ display: 'grid', gridTemplateColumns: cols, gap: 12, alignItems: 'center', backgroundColor: G5, borderRadius: 10, padding: '14px 16px' }}>
-              <span title={r.prospect || ''} style={{ fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {r.prospect || <span style={{ color: '#5a7a6a', fontStyle: 'italic' }}>Sans nom</span>}
-              </span>
-              <span style={{ color: '#7a9e8e', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.siteUrl || '-'}</span>
-              <span style={{ fontSize: 12 }}>
-                {r.workspaceName
-                  ? <span style={{ backgroundColor: G3, color: '#7a9e8e', borderRadius: 5, padding: '2px 8px', fontSize: 11, border: `1px solid ${G4}`, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'inline-block', maxWidth: '100%' }}>{r.workspaceName}</span>
-                  : <span style={{ color: '#3a5c4e', fontSize: 11, fontStyle: 'italic' }}>-</span>}
-              </span>
-              <span style={{ fontSize: 12, fontWeight: 700, textAlign: 'center', color: r.viewCount > 0 ? '#4caf7d' : '#3a5c4e' }} title={r.viewCount > 0 ? `${r.viewCount} consultation${r.viewCount > 1 ? 's' : ''}` : 'Jamais consulté'}>
-                {r.viewCount > 0 ? r.viewCount : '-'}
-              </span>
-              <span style={{ fontSize: 11, color: r.totalTimeSeconds > 0 ? '#7a9e8e' : '#3a5c4e' }}>
-                {fmtDuration(r.totalTimeSeconds)}
-              </span>
-              <span style={{ fontSize: 12, fontWeight: 600, textAlign: 'center', color: r.interactionCount > 0 ? '#7a9e8e' : '#3a5c4e' }}>
-                {r.interactionCount > 0 ? r.interactionCount : '-'}
-              </span>
-              <span style={{ fontSize: 11 }}>
-                {r.lastViewedAt ? (
-                  <span title={r.lastViewerName || r.lastViewerEmail || ''}>
-                    <span style={{ color: '#7a9e8e', display: 'block' }}>{fmtDate(r.lastViewedAt)}</span>
-                    <span style={{ color: '#5a7a6a', fontSize: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block', maxWidth: 120 }}>{r.lastViewerName || r.lastViewerEmail || ''}</span>
+          {visibleReports.map(r => {
+            const isOpen = openAccordion === r.id;
+            return (
+              <div key={r.id} style={{ backgroundColor: G5, borderRadius: 10, border: isOpen ? `1px solid ${G3}` : '1px solid transparent', overflow: 'hidden' }}>
+                {/* Row */}
+                <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 12, alignItems: 'center', padding: '14px 16px' }}>
+                  {/* Toggle button */}
+                  <button
+                    onClick={() => setOpenAccordion(isOpen ? null : r.id)}
+                    title={isOpen ? 'Réduire' : 'Voir les consultations par utilisateur'}
+                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#5a7a6a', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'color 0.15s' }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
+                      <path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+
+                  <span title={r.prospect || ''} style={{ fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {r.prospect || <span style={{ color: '#5a7a6a', fontStyle: 'italic' }}>Sans nom</span>}
                   </span>
-                ) : <span style={{ color: '#3a5c4e', fontStyle: 'italic' }}>Jamais consulté</span>}
-              </span>
-              <span style={{ color: '#5a7a6a', fontSize: 11 }}>{fmtDate(r.createdAt)}</span>
-              {canMove && (
-                <button onClick={() => openMoveModal(r)} style={{ backgroundColor: 'transparent', border: `1px solid ${G4}`, borderRadius: 6, padding: '5px 10px', color: '#7a9e8e', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                  Déplacer
-                </button>
-              )}
-              <Link href={`/?report=${r.id}`} style={{ backgroundColor: G4, color: CREAM, padding: '6px 14px', borderRadius: 6, fontSize: 12, fontWeight: 600, textDecoration: 'none', textAlign: 'center', display: 'block' }}>
-                Ouvrir
-              </Link>
-              <button onClick={() => deleteReport(r.id, r.prospect)} style={{ backgroundColor: 'transparent', border: '1px solid #e05050', borderRadius: 6, padding: '6px 10px', color: '#e05050', fontSize: 12, cursor: 'pointer', width: '100%' }}>
-                Supprimer
-              </button>
-            </div>
-          ))}
+                  <span style={{ color: '#7a9e8e', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.siteUrl || '-'}</span>
+                  <span style={{ fontSize: 12 }}>
+                    {r.workspaceName
+                      ? <span style={{ backgroundColor: G3, color: '#7a9e8e', borderRadius: 5, padding: '2px 8px', fontSize: 11, border: `1px solid ${G4}`, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'inline-block', maxWidth: '100%' }}>{r.workspaceName}</span>
+                      : <span style={{ color: '#3a5c4e', fontSize: 11, fontStyle: 'italic' }}>-</span>}
+                  </span>
+                  <span style={{ fontSize: 12, fontWeight: 700, textAlign: 'center', color: r.viewCount > 0 ? '#4caf7d' : '#3a5c4e' }} title={r.viewCount > 0 ? `${r.viewCount} consultation${r.viewCount > 1 ? 's' : ''}` : 'Jamais consulté'}>
+                    {r.viewCount > 0 ? r.viewCount : '-'}
+                  </span>
+                  <span style={{ fontSize: 11, color: r.totalTimeSeconds > 0 ? '#7a9e8e' : '#3a5c4e' }}>
+                    {fmtDuration(r.totalTimeSeconds)}
+                  </span>
+                  <span style={{ fontSize: 12, fontWeight: 600, textAlign: 'center', color: r.interactionCount > 0 ? '#7a9e8e' : '#3a5c4e' }}>
+                    {r.interactionCount > 0 ? r.interactionCount : '-'}
+                  </span>
+                  <span style={{ fontSize: 11 }}>
+                    {r.lastViewedAt ? (
+                      <span title={r.lastViewerName || r.lastViewerEmail || ''}>
+                        <span style={{ color: '#7a9e8e', display: 'block' }}>{fmtDate(r.lastViewedAt)}</span>
+                        <span style={{ color: '#5a7a6a', fontSize: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block', maxWidth: 120 }}>{r.lastViewerName || r.lastViewerEmail || ''}</span>
+                      </span>
+                    ) : <span style={{ color: '#3a5c4e', fontStyle: 'italic' }}>Jamais consulté</span>}
+                  </span>
+                  <span style={{ color: '#5a7a6a', fontSize: 11 }}>{fmtDate(r.createdAt)}</span>
+                  {canMove && (
+                    <button onClick={() => openMoveModal(r)} style={{ backgroundColor: 'transparent', border: `1px solid ${G4}`, borderRadius: 6, padding: '5px 10px', color: '#7a9e8e', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                      Déplacer
+                    </button>
+                  )}
+                  <Link href={`/?report=${r.id}`} style={{ backgroundColor: G4, color: CREAM, padding: '6px 14px', borderRadius: 6, fontSize: 12, fontWeight: 600, textDecoration: 'none', textAlign: 'center', display: 'block' }}>
+                    Ouvrir
+                  </Link>
+                  <button onClick={() => deleteReport(r.id, r.prospect)} style={{ backgroundColor: 'transparent', border: '1px solid #e05050', borderRadius: 6, padding: '6px 10px', color: '#e05050', fontSize: 12, cursor: 'pointer', width: '100%' }}>
+                    Supprimer
+                  </button>
+                </div>
+
+                {/* Accordion panel */}
+                {isOpen && (
+                  <div style={{ borderTop: `1px solid ${G3}` }}>
+                    <ViewersAccordion reportId={r.id} />
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 

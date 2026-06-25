@@ -23,13 +23,22 @@ export async function GET(
     }
 
     // Track view if user is authenticated (fire-and-forget — never blocks the response)
-    getServerSession(authOptions).then(session => {
+    getServerSession(authOptions).then(async session => {
       if (!session?.user?.id) return;
-      db.execute({
+      const now = new Date().toISOString();
+      await db.execute({
         sql: 'INSERT INTO report_views (id, report_id, user_id, viewed_at) VALUES (?, ?, ?, ?)',
-        args: [uid(), params.id, session.user.id, new Date().toISOString()],
-      }).catch(() => { /* ignore tracking errors */ });
-    }).catch(() => { /* ignore */ });
+        args: [uid(), params.id, session.user.id, now],
+      });
+      await db.execute({
+        sql: `INSERT INTO report_user_stats (report_id, user_id, time_seconds, interactions, view_count, last_viewed)
+              VALUES (?, ?, 0, 0, 1, ?)
+              ON CONFLICT (report_id, user_id) DO UPDATE SET
+                view_count  = view_count + 1,
+                last_viewed = excluded.last_viewed`,
+        args: [params.id, session.user.id, now],
+      });
+    }).catch(() => { /* ignore tracking errors */ });
 
     return NextResponse.json({ stateB64: result.rows[0][0] });
   } catch (err) {
