@@ -1,4 +1,4 @@
-import { createClient, Client } from '@libsql/client';
+import { createClient, Client, InStatement } from '@libsql/client';
 
 let _db: Client | null = null;
 
@@ -15,11 +15,11 @@ export function getDb(): Client {
 }
 
 export const db = {
-  execute:       (...args: Parameters<Client['execute']>)       => getDb().execute(...args),
-  executeMultiple: (...args: Parameters<Client['executeMultiple']>) => getDb().executeMultiple(...args),
-  batch:         (...args: Parameters<Client['batch']>)         => getDb().batch(...args),
-  transaction:   (...args: Parameters<Client['transaction']>)   => getDb().transaction(...args),
-  close:         ()                                             => getDb().close(),
+  execute:         (stmt: InStatement)                          => getDb().execute(stmt),
+  executeMultiple: (sql: string)                               => getDb().executeMultiple(sql),
+  batch:           (...args: Parameters<Client['batch']>)       => getDb().batch(...args),
+  transaction:     (...args: Parameters<Client['transaction']>) => getDb().transaction(...args),
+  close:           ()                                           => getDb().close(),
 };
 
 export async function initDb() {
