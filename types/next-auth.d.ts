@@ -7,6 +7,7 @@ declare module 'next-auth' {
       email: string;
       name: string;
       isGlobalAdmin: boolean;
+      disabled?: boolean;
     };
   }
   interface User {
