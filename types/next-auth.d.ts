@@ -19,5 +19,7 @@ declare module 'next-auth/jwt' {
   interface JWT {
     id: string;
     isGlobalAdmin: boolean;
+    disabled?: boolean;
+    lastTrackedAt?: number;
   }
 }
