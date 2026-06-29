@@ -1,11 +1,20 @@
 import { createClient } from '@libsql/client';
 
-if (!process.env.TURSO_DATABASE_URL) throw new Error('TURSO_DATABASE_URL manquant');
-if (!process.env.TURSO_AUTH_TOKEN)   throw new Error('TURSO_AUTH_TOKEN manquant');
+function getDb() {
+  if (!process.env.TURSO_DATABASE_URL) throw new Error('TURSO_DATABASE_URL manquant');
+  if (!process.env.TURSO_AUTH_TOKEN)   throw new Error('TURSO_AUTH_TOKEN manquant');
+  return createClient({
+    url:       process.env.TURSO_DATABASE_URL,
+    authToken: process.env.TURSO_AUTH_TOKEN,
+  });
+}
 
-export const db = createClient({
-  url:       process.env.TURSO_DATABASE_URL,
-  authToken: process.env.TURSO_AUTH_TOKEN,
+let _db: ReturnType<typeof createClient> | null = null;
+export const db = new Proxy({} as ReturnType<typeof createClient>, {
+  get(_target, prop) {
+    if (!_db) _db = getDb();
+    return (_db as any)[prop];
+  },
 });
 
 export async function initDb() {
