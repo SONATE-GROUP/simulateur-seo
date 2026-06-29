@@ -1,21 +1,26 @@
-import { createClient } from '@libsql/client';
+import { createClient, Client } from '@libsql/client';
 
-function getDb() {
-  if (!process.env.TURSO_DATABASE_URL) throw new Error('TURSO_DATABASE_URL manquant');
-  if (!process.env.TURSO_AUTH_TOKEN)   throw new Error('TURSO_AUTH_TOKEN manquant');
-  return createClient({
-    url:       process.env.TURSO_DATABASE_URL,
-    authToken: process.env.TURSO_AUTH_TOKEN,
-  });
+let _db: Client | null = null;
+
+export function getDb(): Client {
+  if (!_db) {
+    if (!process.env.TURSO_DATABASE_URL) throw new Error('TURSO_DATABASE_URL manquant');
+    if (!process.env.TURSO_AUTH_TOKEN)   throw new Error('TURSO_AUTH_TOKEN manquant');
+    _db = createClient({
+      url:       process.env.TURSO_DATABASE_URL,
+      authToken: process.env.TURSO_AUTH_TOKEN,
+    });
+  }
+  return _db;
 }
 
-let _db: ReturnType<typeof createClient> | null = null;
-export const db = new Proxy({} as ReturnType<typeof createClient>, {
-  get(_target, prop) {
-    if (!_db) _db = getDb();
-    return (_db as any)[prop];
-  },
-});
+export const db = {
+  execute:       (...args: Parameters<Client['execute']>)       => getDb().execute(...args),
+  executeMultiple: (...args: Parameters<Client['executeMultiple']>) => getDb().executeMultiple(...args),
+  batch:         (...args: Parameters<Client['batch']>)         => getDb().batch(...args),
+  transaction:   (...args: Parameters<Client['transaction']>)   => getDb().transaction(...args),
+  close:         ()                                             => getDb().close(),
+};
 
 export async function initDb() {
   // Add columns that may be missing in older DB instances (ALTER TABLE ignores existing columns via try/catch)
