@@ -215,8 +215,8 @@ export default function RapportsPage() {
   }
 
   const cols = canMove
-    ? '20px 3fr 1fr 120px 44px 80px 70px 120px 120px 75px 72px 80px'
-    : '20px 3fr 1fr 120px 44px 80px 70px 120px 120px 92px 80px';
+    ? '20px 3fr 1.5fr 120px 44px 80px 70px 120px 120px 75px 72px 80px'
+    : '20px 3fr 1.5fr 120px 44px 80px 70px 120px 120px 92px 80px';
 
   return (
     <div style={{ maxWidth: 1300 }}>
