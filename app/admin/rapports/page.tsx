@@ -265,7 +265,7 @@ export default function RapportsPage() {
       ) : (
         <div style={{ overflowX: 'auto' }}>
         <div style={{ minWidth: 1050, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, padding: '8px 16px', color: '#7a9e8e', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, padding: '8px 16px', color: '#7a9e8e', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', alignItems: 'end', wordBreak: 'break-word' }}>
             <span></span>
             <span>Prospect</span><span>Espace client</span>
             <span title="Vues">Vues</span><span title="Temps passé total">Temps passé</span><span title="Nombre d'interactions (clics, saisies)">Interactions</span>
