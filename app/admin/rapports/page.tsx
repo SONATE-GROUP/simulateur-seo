@@ -79,11 +79,7 @@ function ViewersAccordion({ reportId }: { reportId: string }) {
   }
 
   if (!viewers || viewers.length === 0) {
-    return (
-      <div style={{ padding: '16px 20px', color: '#5a7a6a', fontSize: 13, fontStyle: 'italic' }}>
-        Aucune donnée de consultation enregistrée pour ce rapport.
-      </div>
-    );
+    return null;
   }
 
   return (
