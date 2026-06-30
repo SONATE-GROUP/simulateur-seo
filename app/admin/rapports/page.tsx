@@ -215,11 +215,11 @@ export default function RapportsPage() {
   }
 
   const cols = canMove
-    ? '20px 2fr 1fr 140px 48px 90px 80px 130px 150px 80px 80px 80px'
-    : '20px 2fr 1fr 140px 48px 90px 80px 130px 150px 100px 80px';
+    ? '20px 3fr 1fr 120px 44px 80px 70px 120px 120px 75px 72px 80px'
+    : '20px 3fr 1fr 120px 44px 80px 70px 120px 120px 92px 80px';
 
   return (
-    <div style={{ maxWidth: 1100 }}>
+    <div style={{ maxWidth: 1300 }}>
       {/* Header */}
       <div style={{ marginBottom: 28 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>Rapports enregistrés</h1>
@@ -263,8 +263,9 @@ export default function RapportsPage() {
           Générez un lien depuis le simulateur pour sauvegarder une simulation.
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 12, padding: '8px 16px', color: '#7a9e8e', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+        <div style={{ overflowX: 'auto' }}>
+        <div style={{ minWidth: 1050, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, padding: '8px 16px', color: '#7a9e8e', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
             <span></span>
             <span>Prospect</span><span>Site</span><span>Espace client</span>
             <span title="Vues">Vues</span><span title="Temps passé total">Temps passé</span><span title="Nombre d'interactions (clics, saisies)">Interactions</span>
@@ -283,7 +284,7 @@ export default function RapportsPage() {
             return (
               <div key={r.id} style={{ backgroundColor: G5, borderRadius: 10, border: isOpen ? `1px solid ${G3}` : '1px solid transparent', overflow: 'hidden' }}>
                 {/* Row */}
-                <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 12, alignItems: 'center', padding: '14px 16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, alignItems: 'center', padding: '14px 16px' }}>
                   {/* Toggle button */}
                   <button
                     onClick={() => setOpenAccordion(isOpen ? null : r.id)}
@@ -344,6 +345,7 @@ export default function RapportsPage() {
               </div>
             );
           })}
+        </div>
         </div>
       )}
 
