@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useMemo, useRef, useEffect, CSSProperties } from 'react';
-import { useSession, signOut } from 'next-auth/react';
+import { useSession, signOut } from '@/lib/session';
+import { INTERNAL_ACCOUNT_ID } from '@/lib/reports';
 import * as XLSX from 'xlsx';
 import {
   ComposedChart, BarChart, Bar, Line, XAxis, YAxis, CartesianGrid,
@@ -755,8 +756,8 @@ export default function SimulateurSEO() {
     next.has(id) ? next.delete(id) : next.add(id);
     return next;
   });
-  const [workspaces, setWorkspaces]   = useState<{ id: string; name: string; role: string }[]>([]);
-  const [workspaceId, setWorkspaceId] = useState<string>('');
+  // Les comptes du portail auxquels rattacher un rapport (ex-« espaces clients »).
+  const [accounts, setAccounts] = useState<{ id: string; name: string }[]>([]);
   const resultsRef  = useRef<HTMLDivElement>(null);
   const xlsxInputRef = useRef<HTMLInputElement>(null);
   const convertInputRef = useRef<HTMLInputElement>(null);
@@ -832,33 +833,23 @@ export default function SimulateurSEO() {
     }
   }, []);
 
-  /* Load workspaces - redirect readers to /rapports (sauf s'ils consultent un rapport) */
+  /* Load accounts - les comptes du portail, lus par l'outil (vide sans accès) */
   useEffect(() => {
-    if (!session) return;
-    // Quand l'URL pointe sur un rapport précis (?report=...), un lecteur doit pouvoir
-    // le consulter en lecture seule : on ne le redirige donc pas dans ce cas.
-    const isViewingReport = new URLSearchParams(window.location.search).has('report');
-    fetch('/api/workspaces')
+    if (!session?.user?.toolRole) return;
+    fetch('/api/accounts')
       .then(r => r.json())
-      .then(data => {
-        if (!Array.isArray(data)) return;
-        const editable = data.filter((w: { role: string }) => w.role === 'owner' || w.role === 'editor');
-        const isReaderOnly = !session.user.isGlobalAdmin && editable.length === 0 && data.length > 0;
-        if (isReaderOnly && !isViewingReport) { window.location.href = '/rapports'; return; }
-        setWorkspaces(editable);
-        if (editable.length > 0 && !workspaceId) setWorkspaceId(editable[0].id);
-      })
+      .then(data => { if (Array.isArray(data)) setAccounts(data); })
       .catch(() => { /* ignore */ });
-  }, [session]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [session?.user?.toolRole]);
 
   /* Keep a live ref to reportId so the engagement tracker below doesn't need to restart
      (and lose its pending counters) every time a report gets saved/loaded */
   const reportIdRef = useRef<string | null>(null);
   useEffect(() => { reportIdRef.current = reportId; }, [reportId]);
 
-  /* Track time spent + interactions for the whole session (periodic heartbeat + flush on
-     leave), as soon as the user is logged in - whether or not a report is open/saved.
-     When a report is open, the same numbers are also added to that report's totals. */
+  /* Track time spent + interactions on the open report (periodic heartbeat + flush on
+     leave). Suivi par rapport seulement : le suivi par personne n'est pas repris dans
+     Ma Sonate (D10 du plan de migration). */
   useEffect(() => {
     if (!session?.user?.id) return;
     let lastTick = Date.now();
@@ -885,7 +876,6 @@ export default function SimulateurSEO() {
       if (seconds <= 0 && interactions === 0) return;
 
       const body = JSON.stringify({ seconds, interactions });
-      post('/api/users/me/engagement', body, useBeacon);
       if (reportIdRef.current) post(`/api/reports/${reportIdRef.current}/engagement`, body, useBeacon);
     };
 
@@ -1629,15 +1619,13 @@ export default function SimulateurSEO() {
   const [funnelPeriod, setFunnelPeriod] = useState<'month' | 'year'>('month');
   const [selectedCatIds, setSelectedCatIds] = useState<Set<string>>(new Set());
   const [bulkBudget, setBulkBudget] = useState<string>('');
-  const [showWorkspaceModal, setShowWorkspaceModal] = useState(false);
-  const [pendingWorkspaceId, setPendingWorkspaceId] = useState<string>('');
-  const [creatingNewSpace, setCreatingNewSpace] = useState(false);
-  const [newSpaceName, setNewSpaceName] = useState('');
-  const [newSpaceError, setNewSpaceError] = useState('');
-  const canSaveReport = Boolean(session?.user?.isGlobalAdmin || workspaces.length > 0);
+  const [showAccountModal, setShowAccountModal] = useState(false);
+  const [pendingAccountId, setPendingAccountId] = useState<string>(INTERNAL_ACCOUNT_ID);
+  // Enregistrer : toute l'équipe qui a l'outil (admin ou member, écran Équipe du portail).
+  const canSaveReport = Boolean(session?.user?.toolRole);
   const isProspectConsultation = Boolean(session && !canSaveReport);
 
-  const doSave = async (wsId: string | null) => {
+  const doSave = async (accountId: string | null) => {
     if (!canSaveReport) {
       setSaveState('error');
       setSaveError('Mode consultation : les modifications de simulation ne peuvent pas être enregistrées.');
@@ -1665,7 +1653,7 @@ export default function SimulateurSEO() {
         const res = await fetch('/api/reports', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id, prospect: state.prospectName, siteUrl: state.siteUrl, sector: state.sector, stateB64, workspaceId: wsId }),
+          body: JSON.stringify({ id, prospect: state.prospectName, siteUrl: state.siteUrl, sector: state.sector, stateB64, accountId }),
         });
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
@@ -1691,8 +1679,8 @@ export default function SimulateurSEO() {
     if (reportId) {
       doSave(null);
     } else {
-      setPendingWorkspaceId(workspaces.length > 0 ? workspaces[0].id : '');
-      setShowWorkspaceModal(true);
+      setPendingAccountId(INTERNAL_ACCOUNT_ID);
+      setShowAccountModal(true);
     }
   };
 
@@ -1763,8 +1751,8 @@ export default function SimulateurSEO() {
   return (
     <div style={{ backgroundColor: G, height: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'Inter, sans-serif' }}>
 
-      {/* Workspace selection modal */}
-      {showWorkspaceModal && (
+      {/* Account selection modal */}
+      {showAccountModal && (
         <div style={{
           position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
@@ -1777,82 +1765,32 @@ export default function SimulateurSEO() {
               Enregistrer le rapport
             </h2>
             <p style={{ color: '#7a9e8e', fontSize: 14, marginBottom: 24 }}>
-              Dans quel espace client souhaitez-vous enregistrer ce rapport ?
+              À quel compte Ma Sonate rattacher ce rapport ? Sans compte pour ce prospect, laissez « Sonate interne » : un admin pourra le déplacer ensuite.
             </p>
 
-            {/* Dropdown espaces existants */}
-            {!creatingNewSpace && (
-              <div style={{ marginBottom: 16 }}>
-                <select
-                  value={pendingWorkspaceId}
-                  onChange={e => setPendingWorkspaceId(e.target.value)}
-                  style={{
-                    width: '100%', backgroundColor: '#233d30', border: '1px solid #2d4a3e',
-                    borderRadius: 8, padding: '10px 12px', color: workspaces.length === 0 ? '#7a9e8e' : '#f5f0e8',
-                    fontSize: 14, cursor: 'pointer', outline: 'none',
-                    appearance: 'none',
-                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%237a9e8e' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`,
-                    backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center',
-                  }}
-                  disabled={workspaces.length === 0}
-                >
-                  {workspaces.length === 0
-                    ? <option value="">Aucun espace disponible</option>
-                    : workspaces.map(ws => <option key={ws.id} value={ws.id}>{ws.name}</option>)
-                  }
-                </select>
-              </div>
-            )}
-
-            {/* Créer un nouvel espace */}
-            {creatingNewSpace ? (
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 13, color: '#7a9e8e', marginBottom: 6 }}>Nom du nouvel espace</div>
-                <input
-                  autoFocus
-                  value={newSpaceName}
-                  onChange={e => { setNewSpaceName(e.target.value); setNewSpaceError(''); }}
-                  placeholder="Ex : Agence Dupont, Client Martin…"
-                  style={{
-                    width: '100%', backgroundColor: '#233d30', border: `1px solid ${newSpaceError ? '#e05050' : '#2d4a3e'}`,
-                    borderRadius: 8, padding: '10px 12px', color: '#f5f0e8',
-                    fontSize: 14, outline: 'none', boxSizing: 'border-box',
-                  }}
-                />
-                {newSpaceError && <div style={{ color: '#e05050', fontSize: 12, marginTop: 4 }}>{newSpaceError}</div>}
-                <button
-                  onClick={() => { setCreatingNewSpace(false); setNewSpaceName(''); setNewSpaceError(''); }}
-                  style={{
-                    background: 'none', border: 'none', color: '#7a9e8e', fontSize: 13,
-                    cursor: 'pointer', marginTop: 8, padding: 0,
-                  }}
-                >
-                  ← Choisir un espace existant
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => { setCreatingNewSpace(true); setPendingWorkspaceId(''); }}
+            <div style={{ marginBottom: 24 }}>
+              <select
+                value={pendingAccountId}
+                onChange={e => setPendingAccountId(e.target.value)}
                 style={{
-                  background: 'none', border: '1px dashed #2d4a3e', borderRadius: 8,
-                  color: '#7a9e8e', fontSize: 13, cursor: 'pointer',
-                  padding: '8px 14px', marginBottom: 24, width: '100%', textAlign: 'left',
+                  width: '100%', backgroundColor: '#233d30', border: '1px solid #2d4a3e',
+                  borderRadius: 8, padding: '10px 12px', color: '#f5f0e8',
+                  fontSize: 14, cursor: 'pointer', outline: 'none',
+                  appearance: 'none',
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%237a9e8e' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`,
+                  backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center',
                 }}
               >
-                + Créer un nouvel espace
-              </button>
-            )}
-
-            {creatingNewSpace && <div style={{ marginBottom: 24 }} />}
+                {!accounts.some(a => a.id === INTERNAL_ACCOUNT_ID) && (
+                  <option value={INTERNAL_ACCOUNT_ID}>Sonate interne</option>
+                )}
+                {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+            </div>
 
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <button
-                onClick={() => {
-                  setShowWorkspaceModal(false);
-                  setCreatingNewSpace(false);
-                  setNewSpaceName('');
-                  setNewSpaceError('');
-                }}
+                onClick={() => setShowAccountModal(false)}
                 style={{
                   backgroundColor: 'transparent', border: '1px solid #2d4a3e',
                   borderRadius: 8, padding: '10px 20px', color: '#7a9e8e',
@@ -1862,38 +1800,14 @@ export default function SimulateurSEO() {
                 Annuler
               </button>
               <button
-                disabled={creatingNewSpace ? !newSpaceName.trim() : (!pendingWorkspaceId && workspaces.length > 0)}
-                onClick={async () => {
-                  if (creatingNewSpace) {
-                    if (!newSpaceName.trim()) { setNewSpaceError('Veuillez saisir un nom'); return; }
-                    const res = await fetch('/api/workspaces', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ name: newSpaceName.trim() }),
-                    });
-                    if (!res.ok) {
-                      const body = await res.json().catch(() => ({}));
-                      setNewSpaceError(body.error ?? 'Erreur lors de la création');
-                      return;
-                    }
-                    const ws = await res.json();
-                    setWorkspaces(prev => [ws, ...prev]);
-                    setShowWorkspaceModal(false);
-                    setCreatingNewSpace(false);
-                    setNewSpaceName('');
-                    setWorkspaceId(ws.id);
-                    doSave(ws.id);
-                  } else {
-                    setShowWorkspaceModal(false);
-                    setWorkspaceId(pendingWorkspaceId);
-                    doSave(pendingWorkspaceId || null);
-                  }
+                onClick={() => {
+                  setShowAccountModal(false);
+                  doSave(pendingAccountId || null);
                 }}
                 style={{
                   backgroundColor: '#e8571a', border: 'none',
                   borderRadius: 8, padding: '10px 24px', color: 'white',
                   fontSize: 14, fontWeight: 700, cursor: 'pointer',
-                  opacity: (creatingNewSpace ? !newSpaceName.trim() : (!pendingWorkspaceId && workspaces.length > 0)) ? 0.5 : 1,
                 }}
               >
                 Enregistrer
@@ -1971,7 +1885,7 @@ export default function SimulateurSEO() {
             {saveState === 'saving' ? '…' : saveState === 'saved' ? '✓ Enregistré !' : saveState === 'error' ? '✗ Erreur' : reportId ? '💾 Sauvegarder' : '💾 Enregistrer'}
           </button>
           )}
-          {(session?.user?.isGlobalAdmin || workspaces.some(w => w.role === 'owner')) && (
+          {canSaveReport && (
             <a
               href="/admin/rapports"
               onClick={e => {
@@ -2002,7 +1916,7 @@ export default function SimulateurSEO() {
             ↓ Exporter PDF
           </button>
           <button
-            onClick={() => signOut({ callbackUrl: '/login' })}
+            onClick={() => signOut()}
             title={session?.user?.name || session?.user?.email || 'Se déconnecter'}
             style={{
               backgroundColor: 'transparent', border: `1px solid ${G3}`,
