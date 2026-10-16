@@ -1,6 +1,6 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
+import { useSession } from '@/lib/session';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useEffect } from 'react';
@@ -23,14 +23,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (status === 'unauthenticated') router.push('/login');
   }, [status, router]);
 
-  const isAdmin = session?.user?.isGlobalAdmin;
+  const isAdmin = session?.user?.isAdmin;
 
   const navItems = [
     { href: '/admin/rapports',       label: 'Rapports',       icon: '📋', adminOnly: false },
-    { href: '/admin/workspaces',     label: 'Espaces clients', icon: '👥', adminOnly: false },
-    { href: '/admin/users',          label: 'Utilisateurs',   icon: '👤', adminOnly: true  },
     { href: '/admin/configuration',  label: 'Configuration',  icon: '⚙️', adminOnly: true  },
   ];
+  // Les personnes et leurs accès se gèrent dans Ma Sonate (Admin → Équipe),
+  // les espaces clients sont devenus les comptes du portail.
 
   const visibleItems = navItems.filter(item => !item.adminOnly || isAdmin);
 
@@ -93,10 +93,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           }}>
             <span>←</span> Simulateur
           </Link>
-          {session?.user?.name && (
+          {session?.user?.email && (
             <div style={{ marginTop: 12, padding: '0 12px' }}>
               <div style={{ fontSize: 11, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {session.user.name}
+                {session.user.name || session.user.email}
               </div>
               <div style={{ fontSize: 10, color: G4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 1 }}>
                 {session.user.email}

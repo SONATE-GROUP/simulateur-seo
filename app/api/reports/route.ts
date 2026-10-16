@@ -1,136 +1,95 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import { db, initDb } from '@/lib/turso';
+import { createServerClient } from '@/lib/supabase/server';
+import { REPORT_ID_RE, type LegacyStats, type ReportSummary } from '@/lib/reports';
 
-export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
-/* POST /api/reports - save a new report */
+/* POST /api/reports - enregistre un nouveau rapport. L'auteur est la personne
+   connectée (imposé par la RLS) ; le compte est « Sonate interne » par défaut. */
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+  const supabase = createServerClient();
+  const { id, prospect, siteUrl, sector, stateB64, accountId } = await req.json();
 
-  try {
-    await initDb();
-    const { id, prospect, siteUrl, sector, stateB64, workspaceId } = await req.json();
-
-    if (!id || !stateB64) {
-      return NextResponse.json({ error: 'id and stateB64 are required' }, { status: 400 });
-    }
-
-    if (!session.user.isGlobalAdmin) {
-      if (workspaceId) {
-        const memberCheck = await db.execute({
-          sql: 'SELECT role FROM workspace_members WHERE workspace_id = ? AND user_id = ?',
-          args: [workspaceId, session.user.id],
-        });
-        const role = memberCheck.rows[0]?.[0] as string | undefined;
-        if (role !== 'owner' && role !== 'editor') {
-          return NextResponse.json({ error: 'Accès refusé : droits d’édition requis' }, { status: 403 });
-        }
-      } else {
-        const editableWorkspaceCheck = await db.execute({
-          sql: `SELECT 1 FROM workspace_members
-                WHERE user_id = ? AND role IN ('owner', 'editor')
-                LIMIT 1`,
-          args: [session.user.id],
-        });
-        if (!editableWorkspaceCheck.rows.length) {
-          return NextResponse.json({ error: 'Accès refusé : droits d’édition requis' }, { status: 403 });
-        }
-      }
-    }
-
-    await db.execute({
-      sql: `INSERT OR REPLACE INTO reports (id, prospect, site_url, sector, state_b64, created_at, workspace_id, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [id, prospect ?? '', siteUrl ?? '', sector ?? '', stateB64, new Date().toISOString(), workspaceId ?? null, session.user.id],
-    });
-
-    return NextResponse.json({ ok: true });
-  } catch (err) {
-    console.error('[reports POST]', err);
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+  if (typeof id !== 'string' || !REPORT_ID_RE.test(id) || typeof stateB64 !== 'string' || !stateB64) {
+    return NextResponse.json({ error: 'id et stateB64 requis' }, { status: 400 });
   }
+
+  const { data: { user } } = await supabase.auth.getUser();
+  const { error } = await supabase.from('reports').insert({
+    id,
+    prospect: prospect ?? '',
+    site_url: siteUrl ?? '',
+    sector: sector ?? '',
+    state: stateB64,
+    created_by: user?.id,
+    ...(accountId ? { account_id: accountId } : {}),
+  });
+
+  if (error) {
+    console.error('[reports POST]', error.message);
+    const refused = error.code === '42501';
+    return NextResponse.json(
+      { error: refused ? 'Accès refusé : le Simulateur SEO ne vous est pas ouvert' : 'Erreur serveur' },
+      { status: refused ? 403 : 500 }
+    );
+  }
+  return NextResponse.json({ ok: true });
 }
 
-/* GET /api/reports - list reports (all for admin, workspace-filtered for members) */
+/* GET /api/reports - tous les rapports visibles (la RLS : toute l'équipe qui a
+   l'outil), avec le compte, l'auteur et les consultations. Le détail de qui a
+   consulté n'est rendu qu'aux admins de l'outil. */
 export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+  const supabase = createServerClient();
 
-  try {
-    await initDb();
-    let rows;
+  const [reports, accounts, authors, stats, views, viewers] = await Promise.all([
+    supabase.from('reports')
+      .select('id, prospect, site_url, sector, account_id, created_by, legacy_author, time_seconds, interactions, legacy_stats, created_at, updated_at')
+      .order('created_at', { ascending: false }),
+    supabase.rpc('report_accounts'),
+    supabase.rpc('report_authors'),
+    supabase.rpc('report_view_stats'),
+    // Admins seulement (RLS) ; un membre reçoit une liste vide.
+    supabase.from('report_views').select('report_id, user_id, viewed_at').order('viewed_at', { ascending: false }),
+    supabase.rpc('report_viewers'),
+  ]);
 
-    const viewSubquery = `(
-      SELECT rv.report_id,
-             COUNT(*) as view_count,
-             MAX(rv.viewed_at) as last_viewed_at,
-             (SELECT u2.name FROM users u2
-              JOIN report_views rv2 ON rv2.user_id = u2.id
-              WHERE rv2.report_id = rv.report_id
-              ORDER BY rv2.viewed_at DESC LIMIT 1) as last_viewer_name,
-             (SELECT u3.email FROM users u3
-              JOIN report_views rv3 ON rv3.user_id = u3.id
-              WHERE rv3.report_id = rv.report_id
-              ORDER BY rv3.viewed_at DESC LIMIT 1) as last_viewer_email
-      FROM report_views rv
-      GROUP BY rv.report_id
-    ) vs`;
-
-    if (session.user.isGlobalAdmin) {
-      const result = await db.execute(
-        `SELECT r.id, r.prospect, r.site_url, r.sector, r.created_at, r.workspace_id,
-                w.name as workspace_name,
-                COALESCE(vs.view_count, 0) as view_count,
-                vs.last_viewed_at, vs.last_viewer_name, vs.last_viewer_email,
-                COALESCE(r.total_time_seconds, 0) as total_time_seconds,
-                COALESCE(r.interaction_count, 0) as interaction_count
-         FROM reports r
-         LEFT JOIN workspaces w ON w.id = r.workspace_id
-         LEFT JOIN ${viewSubquery} ON vs.report_id = r.id
-         ORDER BY r.created_at DESC`
-      );
-      rows = result.rows;
-    } else {
-      const result = await db.execute({
-        sql: `SELECT r.id, r.prospect, r.site_url, r.sector, r.created_at, r.workspace_id,
-                     w.name as workspace_name,
-                     COALESCE(vs.view_count, 0) as view_count,
-                     vs.last_viewed_at, vs.last_viewer_name, vs.last_viewer_email,
-                     COALESCE(r.total_time_seconds, 0) as total_time_seconds,
-                     COALESCE(r.interaction_count, 0) as interaction_count
-              FROM reports r
-              LEFT JOIN workspaces w ON w.id = r.workspace_id
-              LEFT JOIN ${viewSubquery} ON vs.report_id = r.id
-              WHERE r.created_by = ?
-                 OR r.workspace_id IN (
-                   SELECT workspace_id FROM workspace_members WHERE user_id = ?
-                 )
-              ORDER BY r.created_at DESC`,
-        args: [session.user.id, session.user.id],
-      });
-      rows = result.rows;
-    }
-
-    return NextResponse.json(rows.map(r => ({
-      id:               r[0] as string,
-      prospect:         r[1] as string,
-      siteUrl:          r[2] as string,
-      sector:           r[3] as string,
-      createdAt:        r[4] as string,
-      workspaceId:      r[5] as string | null,
-      workspaceName:    r[6] as string | null,
-      viewCount:        Number(r[7]) || 0,
-      lastViewedAt:     r[8] as string | null,
-      lastViewerName:   r[9] as string | null,
-      lastViewerEmail:  r[10] as string | null,
-      totalTimeSeconds: Number(r[11]) || 0,
-      interactionCount: Number(r[12]) || 0,
-    })));
-  } catch (err) {
-    console.error('[reports GET]', err);
+  if (reports.error) {
+    console.error('[reports GET]', reports.error.message);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
+
+  const accountName = new Map((accounts.data ?? []).map(a => [a.report_id, a.account_name]));
+  const authorEmail = new Map((authors.data ?? []).map(a => [a.user_id, a.email]));
+  const viewStats   = new Map((stats.data ?? []).map(s => [s.report_id, s]));
+  const viewerEmail = new Map((viewers.data ?? []).map(v => [v.user_id, v.email]));
+  const lastView    = new Map<string, { user_id: string | null; viewed_at: string }>();
+  for (const v of views.data ?? []) if (!lastView.has(v.report_id)) lastView.set(v.report_id, v);
+
+  const rows: ReportSummary[] = reports.data.map(r => {
+    const legacy = (r.legacy_stats ?? {}) as LegacyStats;
+    const s = viewStats.get(r.id);
+    const last = lastView.get(r.id);
+    const lastNow = s?.last_viewed_at ?? null;
+    const lastBefore = legacy.last_viewed_at ?? null;
+    return {
+      id: r.id,
+      prospect: r.prospect,
+      siteUrl: r.site_url,
+      sector: r.sector,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+      accountId: r.account_id,
+      accountName: accountName.get(r.id) ?? null,
+      createdBy: r.created_by,
+      authorEmail: (r.created_by && authorEmail.get(r.created_by)) || r.legacy_author || null,
+      viewCount: Number(s?.view_count ?? 0) + Number(legacy.views ?? 0),
+      lastViewedAt: lastNow && lastBefore ? (lastNow > lastBefore ? lastNow : lastBefore) : (lastNow ?? lastBefore),
+      lastViewerEmail: last?.user_id ? viewerEmail.get(last.user_id) ?? null : null,
+      totalTimeSeconds: r.time_seconds,
+      interactionCount: r.interactions,
+    };
+  });
+
+  return NextResponse.json(rows);
 }
