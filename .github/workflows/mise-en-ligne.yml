@@ -100,7 +100,7 @@ jobs:
           DEPOT: simulateur-seo
           PR: ${{ github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number }}
           SHA: ${{ github.event.sha }}
-          EVENEMENT: ${{ github.event_name == 'status' && format('déploiement {0} : {1}', github.event.context, github.event.state) || github.event_name == 'pull_request_target' && 'PR sortie de brouillon' || format('workflow {0} terminé, {1}', github.event.workflow_run.name, github.event.workflow_run.conclusion) }}
+          EVENEMENT: ${{ github.event_name == 'status' && format('déploiement {0}, {1}', github.event.context, github.event.state) || github.event_name == 'pull_request_target' && 'PR sortie de brouillon' || format('workflow {0} terminé, {1}', github.event.workflow_run.name, github.event.workflow_run.conclusion) }}
           ATTENDRE_CI: 'false'
           FIN_CI: 'true'
           TRI: ${{ vars.MISE_EN_LIGNE_TRI }}
