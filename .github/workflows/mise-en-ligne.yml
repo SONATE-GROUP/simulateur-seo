@@ -1,0 +1,183 @@
+name: Mise en ligne
+
+# L'agent de mise en ligne sur un OUTIL de Ma Sonate (décisions d'Emmanuel du 26/10). Installé
+# depuis SONATE-GROUP/mise-en-ligne (`modeles/outil/`) : c'est le dépôt de l'agent qui porte la
+# loi (skill, § 9) et les scripts ; ce fichier ne fait que les appeler.
+#
+# - Une FICHE par PR, quand tous ses contrôles sont finis : la provenance (workflow_run) et
+#   chaque déploiement Vercel de sa tête (événement `status`, qui ne porte pas la PR : le
+#   script la retrouve par le commit).
+# - Le TRI vers `dev` (variable `MISE_EN_LIGNE_TRI` : `A` documentation, `B` documentation et
+#   code ; classes d'un outil dans `scripts/depots.mjs`). « L'agent juge, le script exécute » :
+#   le merge est fait par `trier.mjs`, avec un second jeton jamais transmis à la session.
+# - Le TRAIN (`train.yml`) ouvre `dev` → `staging` et `staging` → `main` ; jugées ici. Une
+#   montée vers `staging` est mergée par le script ; une montée vers `main` JAMAIS (Vercel
+#   publie `main` : c'est la production), Emmanuel est prévenu au journal quand elle est prête.
+# - L'ALERTE : un déploiement Vercel en échec sur `dev`, `staging` ou `main` est écrit au
+#   journal du dépôt (issue « Journal de mise en ligne », créée au premier besoin).
+#
+# `pull_request_target`, `workflow_run` et `status` lisent ce fichier sur `main` : une
+# modification ne vaut qu'une fois mergée sur `main`. Le code des PR n'est ni récupéré ni
+# exécuté ici : seul le dépôt de l'agent est cloné.
+#
+# Couper : variables `MISE_EN_LIGNE_TRI` / `MISE_EN_LIGNE_TRAIN` à `off`, ou désactiver ce
+# workflow (onglet Actions).
+
+on:
+  pull_request_target:
+    types: [ready_for_review]
+  workflow_run:
+    workflows: [Provenance]
+    types: [completed]
+  status:
+
+permissions: {}
+
+concurrency:
+  group: mise-en-ligne-${{ github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number || github.event.sha || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  fiche:
+    if: >-
+      (github.event_name == 'pull_request_target' && !github.event.pull_request.draft)
+      || (github.event_name == 'workflow_run'
+          && github.event.workflow_run.event == 'pull_request'
+          && github.event.workflow_run.pull_requests[0].number)
+      || (github.event_name == 'status'
+          && github.event.state != 'pending'
+          && (github.event.context == 'Vercel' || startsWith(github.event.context, 'Vercel ')))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Jeton de l'agent (lecture)
+        id: jeton-agent
+        uses: actions/create-github-app-token@v2
+        with:
+          skip-token-revoke: true
+          app-id: ${{ secrets.MISE_EN_LIGNE_APP_ID }}
+          private-key: ${{ secrets.MISE_EN_LIGNE_APP_KEY }}
+          owner: SONATE-GROUP
+          repositories: simulateur-seo
+          permission-contents: read
+          permission-pull-requests: write
+          permission-actions: read
+          permission-checks: read
+          permission-statuses: read
+
+      - name: Jeton de lecture du dépôt de l'agent
+        id: jeton-central
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.MISE_EN_LIGNE_APP_ID }}
+          private-key: ${{ secrets.MISE_EN_LIGNE_APP_KEY }}
+          owner: SONATE-GROUP
+          repositories: mise-en-ligne
+          permission-contents: read
+
+      - uses: actions/checkout@v5
+        with:
+          repository: SONATE-GROUP/mise-en-ligne
+          ref: main
+          token: ${{ steps.jeton-central.outputs.token }}
+          persist-credentials: false
+
+      - name: Installer ant
+        run: |
+          VERSION=1.43.0
+          SHA256=377ad0732789b6bb44f126da36d665e872320c2154d8ca24ad86d119d47f792a
+          curl -fsSL -o ant.tar.gz "https://github.com/anthropics/anthropic-cli/releases/download/v${VERSION}/ant_${VERSION}_linux_amd64.tar.gz"
+          echo "${SHA256}  ant.tar.gz" | sha256sum -c -
+          sudo tar -xzf ant.tar.gz -C /usr/local/bin ant
+          rm ant.tar.gz
+
+      # Tout passe par l'environnement, rien n'est interpolé dans le script.
+      - name: Lancer la session
+        id: session
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.MISE_EN_LIGNE_ANTHROPIC_KEY }}
+          GITHUB_TOKEN_AGENT: ${{ steps.jeton-agent.outputs.token }}
+          DEPOT: simulateur-seo
+          PR: ${{ github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number }}
+          SHA: ${{ github.event.sha }}
+          EVENEMENT: ${{ github.event_name == 'status' && format('déploiement {0} : {1}', github.event.context, github.event.state) || github.event_name == 'pull_request_target' && 'PR sortie de brouillon' || format('workflow {0} terminé, {1}', github.event.workflow_run.name, github.event.workflow_run.conclusion) }}
+          ATTENDRE_CI: 'false'
+          FIN_CI: 'true'
+          TRI: ${{ vars.MISE_EN_LIGNE_TRI }}
+          TRAIN: ${{ vars.MISE_EN_LIGNE_TRAIN }}
+        run: node scripts/declencher.mjs
+
+      - name: Jeton de merge (tri)
+        id: jeton-merge
+        if: steps.session.outputs.verdict != ''
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.MISE_EN_LIGNE_APP_ID }}
+          private-key: ${{ secrets.MISE_EN_LIGNE_APP_KEY }}
+          owner: SONATE-GROUP
+          repositories: simulateur-seo
+          permission-contents: write
+          permission-pull-requests: write
+          permission-issues: write
+          permission-checks: read
+          permission-statuses: read
+
+      - name: Trier (merge vers dev ou montée vers staging si tout concorde)
+        if: steps.session.outputs.verdict != ''
+        env:
+          GITHUB_TOKEN_MERGE: ${{ steps.jeton-merge.outputs.token }}
+          DEPOT: simulateur-seo
+          PR: ${{ steps.session.outputs.pr }}
+          VERDICT: ${{ steps.session.outputs.verdict }}
+          TRI: ${{ vars.MISE_EN_LIGNE_TRI }}
+          TRAIN: ${{ vars.MISE_EN_LIGNE_TRAIN }}
+        run: node scripts/trier.mjs
+
+  alerte:
+    # Un déploiement Vercel en échec sur une branche de déploiement (`dev`, `staging`, `main`).
+    if: >-
+      github.event_name == 'status'
+      && (github.event.state == 'failure' || github.event.state == 'error')
+      && (github.event.context == 'Vercel' || startsWith(github.event.context, 'Vercel '))
+      && (contains(github.event.branches.*.name, 'dev') || contains(github.event.branches.*.name, 'staging') || contains(github.event.branches.*.name, 'main'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Jeton d'alerte (journal)
+        id: jeton-alerte
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.MISE_EN_LIGNE_APP_ID }}
+          private-key: ${{ secrets.MISE_EN_LIGNE_APP_KEY }}
+          owner: SONATE-GROUP
+          repositories: simulateur-seo
+          permission-issues: write
+          permission-contents: read
+
+      - name: Jeton de lecture du dépôt de l'agent
+        id: jeton-central
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.MISE_EN_LIGNE_APP_ID }}
+          private-key: ${{ secrets.MISE_EN_LIGNE_APP_KEY }}
+          owner: SONATE-GROUP
+          repositories: mise-en-ligne
+          permission-contents: read
+
+      - uses: actions/checkout@v5
+        with:
+          repository: SONATE-GROUP/mise-en-ligne
+          ref: main
+          token: ${{ steps.jeton-central.outputs.token }}
+          persist-credentials: false
+
+      - name: Alerter
+        env:
+          GITHUB_TOKEN_ALERTE: ${{ steps.jeton-alerte.outputs.token }}
+          DEPOT: simulateur-seo
+          SHA: ${{ github.event.sha }}
+          CONTEXTE: ${{ github.event.context }}
+          ETAT: ${{ github.event.state }}
+          URL: ${{ github.event.target_url }}
+          BRANCHE: ${{ contains(github.event.branches.*.name, 'main') && 'main' || contains(github.event.branches.*.name, 'staging') && 'staging' || 'dev' }}
+        run: node scripts/alerter.mjs

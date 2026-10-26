@@ -1,0 +1,70 @@
+name: Train de montée
+
+# Le TRAIN de l'agent de mise en ligne sur un OUTIL (décisions d'Emmanuel du 26/10). À heure
+# fixe, ou à la main, `train.mjs` (dépôt SONATE-GROUP/mise-en-ligne) ouvre `staging` → `main`
+# (si la variable vaut `main`) puis `dev` → `staging`, quand la tête est verte sur Vercel. Il ne
+# merge RIEN : le workflow « Mise en ligne » juge chaque PR à la fin de ses contrôles ; une
+# montée vers `staging` est mergée par le script, une montée vers `main` JAMAIS (c'est la
+# production de l'outil) : Emmanuel est prévenu au journal quand elle est prête.
+#
+# Variable `MISE_EN_LIGNE_TRAIN` : `staging` (`dev` → `staging`), `main` (aussi ouvrir et
+# notifier `staging` → `main`) ; toute autre valeur, ou son absence, le coupe.
+#
+# ⚠️ Un `schedule` ne tourne que depuis `main` : ce fichier n'agit qu'une fois mergé sur `main`.
+# Heures en UTC : 12 h et 18 h, soit 13 h et 19 h à Paris en hiver.
+
+on:
+  schedule:
+    - cron: "0 12,18 * * 1-5"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: train-de-montee
+  cancel-in-progress: false
+
+jobs:
+  train:
+    if: vars.MISE_EN_LIGNE_TRAIN == 'staging' || vars.MISE_EN_LIGNE_TRAIN == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Jeton du train
+        id: jeton-train
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.MISE_EN_LIGNE_APP_ID }}
+          private-key: ${{ secrets.MISE_EN_LIGNE_APP_KEY }}
+          owner: SONATE-GROUP
+          repositories: simulateur-seo
+          permission-contents: read
+          permission-pull-requests: write
+          permission-issues: write
+          permission-actions: read
+          permission-checks: read
+          permission-statuses: read
+
+      - name: Jeton de lecture du dépôt de l'agent
+        id: jeton-central
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.MISE_EN_LIGNE_APP_ID }}
+          private-key: ${{ secrets.MISE_EN_LIGNE_APP_KEY }}
+          owner: SONATE-GROUP
+          repositories: mise-en-ligne
+          permission-contents: read
+
+      - uses: actions/checkout@v5
+        with:
+          repository: SONATE-GROUP/mise-en-ligne
+          ref: main
+          token: ${{ steps.jeton-central.outputs.token }}
+          persist-credentials: false
+
+      - name: Ouvrir les montées si tout le permet
+        env:
+          GITHUB_TOKEN_TRAIN: ${{ steps.jeton-train.outputs.token }}
+          DEPOT: simulateur-seo
+          TRAIN: ${{ vars.MISE_EN_LIGNE_TRAIN }}
+        run: node scripts/train.mjs
