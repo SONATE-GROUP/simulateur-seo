@@ -1,0 +1,40 @@
+name: Provenance
+
+# La seule CI de l'outil, avec le build Vercel de la PR (décision d'Emmanuel du 26/10) : une
+# PR vers `main` ne vient que de `staging`, une PR vers `staging` ne vient que de `dev`. C'est
+# la chaîne `feat/*` → `dev` → `staging` → `main` du portail (et `main` = production Vercel).
+# Les noms de branche passent par `env`, jamais par ${{ }} dans le script : un nom de branche
+# est choisi par celui qui ouvre la PR.
+#
+# Installé par l'agent de mise en ligne (SONATE-GROUP/mise-en-ligne, `modeles/outil/`).
+
+on:
+  pull_request:
+
+concurrency:
+  group: provenance-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  provenance:
+    name: provenance
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Vérifier la cible de la PR
+        env:
+          BASE: ${{ github.base_ref }}
+          HEAD: ${{ github.head_ref }}
+        run: |
+          if [ "$BASE" = "main" ] && [ "$HEAD" != "staging" ]; then
+            echo "::error::Une PR vers main ne peut venir que de staging (reçu : $HEAD). Ouvre-la vers dev."
+            exit 1
+          fi
+          if [ "$BASE" = "staging" ] && [ "$HEAD" != "dev" ]; then
+            echo "::error::Une PR vers staging ne peut venir que de dev (reçu : $HEAD)"
+            exit 1
+          fi
+          echo "Provenance correcte : $HEAD → $BASE"
