@@ -87,6 +87,19 @@ jobs:
           repositories: mise-en-ligne
           permission-contents: read
 
+      # L'état du portail (dernières migrations, dernière production), lu par le script et
+      # donné à l'agent : son propre jeton ne lit que ce dépôt. Lecture seule, jamais transmis
+      # à la session.
+      - name: Jeton de lecture du portail
+        id: jeton-portail
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.MISE_EN_LIGNE_APP_ID }}
+          private-key: ${{ secrets.MISE_EN_LIGNE_APP_KEY }}
+          owner: SONATE-GROUP
+          repositories: masonate
+          permission-contents: read
+
       - uses: actions/checkout@v5
         with:
           repository: SONATE-GROUP/mise-en-ligne
@@ -109,6 +122,7 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.MISE_EN_LIGNE_ANTHROPIC_KEY }}
           GITHUB_TOKEN_AGENT: ${{ steps.jeton-agent.outputs.token }}
+          GITHUB_TOKEN_PORTAIL: ${{ steps.jeton-portail.outputs.token }}
           DEPOT: simulateur-seo
           PR: ${{ github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number }}
           SHA: ${{ github.event.sha }}
